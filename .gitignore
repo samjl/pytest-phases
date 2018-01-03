@@ -1,0 +1,7 @@
+dist/
+*.egg-info/
+build/
+.idea/
+.cache/
+*.pyc
+.tox/
