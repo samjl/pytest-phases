@@ -56,6 +56,10 @@ class SessionStatus(object):
     prev_teardown = None  # Track the most recently completed teardown
     # fixture so it can be assigned to any regular assertions raised
 
+    # MongoDB
+    mongo = None
+    test_object_id = None
+
 
 class Verifications:
     # Module level storage of verification results and tracebacks for

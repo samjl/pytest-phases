@@ -129,6 +129,17 @@ def pytest_configure(config):
     LogOutputRedirection.session_file_path = os.path.join(
         LogOutputRedirection.root_directory, "session.json")
 
+    SessionStatus.mongo = MongoConnector()
+
+
+def pytest_collection_modifyitems(session, config, items):
+    print("**************** pytest_collection_modifyitems *******************")
+    # debug_print(session, DEBUG["mongo"])
+    # debug_print(config, DEBUG["mongo"])
+    # debug_print(items, DEBUG["mongo"])
+    # FIXME could do this earlier
+    SessionStatus.mongo.init_session()
+
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_setup(item):
@@ -307,6 +318,15 @@ def pytest_pyfunc_call(pyfuncitem):
     SessionStatus.exec_func_fix = pyfuncitem.name
     SessionStatus.test_function = pyfuncitem.name
 
+    print("**************************************************************")
+    i = get_current_index()
+    # FIXME keep track of current test ObjectId or find it every time?
+    query = {"_id": SessionStatus.test_object_id}
+    update = {"$set": {"call": {"logStart": i}}}
+    debug_print("Updating oid {}".format(query), DEBUG["mongo"])
+    SessionStatus.mongo.update_test_result(query, update)
+    print("**************************************************************")
+
     outcome = yield
     debug_print("CALL - Completed {}, outcome {}".format(pyfuncitem, outcome),
                 DEBUG["phases"])
@@ -338,6 +358,13 @@ def pytest_runtest_teardown(item, nextitem):
     print("**************** pytest_runtest_teardown start *******************")
     debug_print("Test TEARDOWN - Starting {}".format(item), DEBUG["phases"])
     SessionStatus.phase = "teardown"
+
+    i = get_current_index()
+    # FIXME keep track of current test ObjectId or find it every time?
+    query = {"_id": SessionStatus.test_object_id}
+    update = {"$set": {"teardown": {"logStart": i}}}
+    debug_print("Updating oid {}".format(query), DEBUG["mongo"])
+    SessionStatus.mongo.update_test_result(query, update)
 
     outcome = yield
     debug_print("Test TEARDOWN - completed {}, outcome: {}".format(item,
