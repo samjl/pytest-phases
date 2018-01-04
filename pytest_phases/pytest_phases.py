@@ -436,7 +436,7 @@ def _save_non_verify_exc(raised_exc):
                 fixture_scope = item.scope
                 debug_print("scope for {} is {} [{}]".format(fixture_name,
                                                              fixture_scope, i), DEBUG["not-plugin"])
-        if fixture_name:
+        if fixture_scope:
             break
 
     debug_print("saving: {}, {}".format(fixture_name, fixture_scope),
@@ -452,7 +452,7 @@ def _save_non_verify_exc(raised_exc):
     else:
         module_function_line = trace_complete[-2]
     s_res.append(Result(exc_msg, "FAIL", exc_type, fixture_scope,
-                        fixture_name, module_function_line, [trace_complete[-1]],
+                        module_function_line, [trace_complete[-1]],
                         True, source_locals=locals_all_frames[-1],
                         fail_traceback_link=s_tb[-1]))
     s_tb[-1].result_link = s_res[-1]

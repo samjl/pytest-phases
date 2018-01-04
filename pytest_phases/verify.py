@@ -65,9 +65,8 @@ class Result(object):
     """Object used to save a result of the verify function or
     any other caught exceptions.
     """
-    def __init__(self, message, status, type_code, scope,
-                 fixture_name, source_function, source_code, raise_immediately,
-                 source_locals=None, traceback_index=None,
+    def __init__(self, message, status, type_code, scope, source_function,
+                 source_code, raise_immediately, source_locals=None,
                  fail_traceback_link=None):
         # Basic result information
         self.step = get_current_l1_msg()
@@ -326,7 +325,7 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
                     fixture_scope = item.scope
                     debug_print("scope for {} is {} [{}]".format(fixture_name,
                                                                  fixture_scope, d), DEBUG["verify"])
-            if fixture_name:
+            if fixture_scope:
                 break
 
     # TODO check performance of this - not sure if we want to do it for all
@@ -352,8 +351,8 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
     else:
         failure_traceback = None
     s_res.append(Result(msg, status, type_code, fixture_scope,
-                        fixture_name, source_function, source_call,
-                        raise_immediately, source_locals=source_locals,
+                        source_function, source_call, raise_immediately,
+                        source_locals=source_locals,
                         fail_traceback_link=failure_traceback))
     if type_code == "F" or type_code == "W":
         s_tb[-1].result_link = s_res[-1]
