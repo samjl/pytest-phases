@@ -225,7 +225,7 @@ def pytest_runtest_setup(item):
             set_saved_raised()
         else:
             debug_print("SETUP - Found an exception already re-raised by "
-                         "wrapper", DEBUG["phases"])
+                        "wrapper", DEBUG["phases"])
     else:
         # Nothing raised so check if there are any saved results that
         # need to be raised.
@@ -270,13 +270,14 @@ def pytest_fixture_setup(fixturedef, request):
         setup_params = ""
     setup_args = "{}{}".format(fixturedef.argname, setup_params)
     SessionStatus.active_setups.append(setup_args)
-    SessionStatus.test_fixtures[SessionStatus.test_function] = list(SessionStatus.active_setups)
+    SessionStatus.test_fixtures[SessionStatus.test_function] = \
+        list(SessionStatus.active_setups)
     SessionStatus.exec_func_fix = setup_args
 
     yield
 
-    debug_print("Fixture SETUP for {0.argname} with {0.scope} scope "
-                 "COMPLETE".format(fixturedef), DEBUG["scopes"])
+    debug_print("Fixture SETUP for {0.argname} with {0.scope} scope COMPLETE"
+                .format(fixturedef), DEBUG["scopes"])
     print("**************** pytest_fixture_setup end ***********************")
 
 
@@ -302,7 +303,7 @@ def pytest_fixture_post_finalizer(fixturedef, request):
         print e
 
     debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope "
-                 "COMPLETE".format(fixturedef), DEBUG["scopes"])
+                "COMPLETE".format(fixturedef), DEBUG["scopes"])
     print("**************** pytest_fixture_post_finalizer end ***************")
 
 
@@ -346,7 +347,7 @@ def pytest_runtest_teardown(item, nextitem):
 
     outcome = yield
     debug_print("Test TEARDOWN - completed {}, outcome: {}".format(item,
-                                                                   outcome), DEBUG["phases"])
+                outcome), DEBUG["phases"])
 
     raised_exc = outcome.excinfo
     debug_print("Test TEARDOWN - Raised exception: {}".format(raised_exc),
@@ -370,7 +371,7 @@ def pytest_runtest_teardown(item, nextitem):
             set_saved_raised()
         else:
             debug_print("TEARDOWN - Found an exception already re-raised by "
-                         "wrapper", DEBUG["phases"])
+                        "wrapper", DEBUG["phases"])
     else:
         # Re-raise first VerificationException not yet raised
         # Saved and immediately raised VerificationExceptions are raised here.
@@ -435,7 +436,7 @@ def _save_non_verify_exc(raised_exc):
                 fixture_name = item.argname
                 fixture_scope = item.scope
                 debug_print("scope for {} is {} [{}]".format(fixture_name,
-                                                             fixture_scope, i), DEBUG["not-plugin"])
+                            fixture_scope, i), DEBUG["not-plugin"])
         if fixture_scope:
             break
 
@@ -475,7 +476,7 @@ def _raise_first_saved_exc_type(type_to_raise):
 @pytest.hookimpl(hookwrapper=True)
 def pytest_report_teststatus(report):
     debug_print("TEST REPORT FOR {} PHASE: {}".format(report.when,
-                                                      report.outcome), DEBUG["phases"])
+                report.outcome), DEBUG["phases"])
     yield
     if report.when == "teardown":
         # FIXME this is just for a single test
@@ -500,8 +501,8 @@ def pytest_terminal_summary(terminalreporter):
     if DEBUG["summary"]:
         debug_print("Run order:", DEBUG["summary"])
         for module_class_function in SessionStatus.run_order:
-            debug_print("{0[0]}::{0[1]}::{0[2]}".format(module_class_function)
-                        , DEBUG["summary"])
+            debug_print("{0[0]}::{0[1]}::{0[2]}".format(module_class_function),
+                        DEBUG["summary"])
 
     # if DEBUG["verify"]:
     #     print "Saved Results (dictionaries)"
@@ -725,7 +726,7 @@ def pytest_terminal_summary(terminalreporter):
             print(line)
     else:
         debug_print("No collection errors, skips, xFail/xPass or pytest-"
-                     "warnings", DEBUG["summary"])
+                    "warnings", DEBUG["summary"])
 
     session_duration = time.time() - terminalreporter._sessionstarttime
     debug_print("Session duration: {}s (sum of phases: {}s)".format(
@@ -750,7 +751,8 @@ def pytest_terminal_summary(terminalreporter):
     #     call = fcntl.ioctl(1, termios.TIOCGWINSZ, "\000"*8)
     #     width = struct.unpack("hhhh", call)[:2][1]  # Get terminal size
     # except Exception:
-    #     width = 80  # Default width for if pararmeter not sent from parent process
+    #     # Default width for if parameter not sent from parent process
+    #     width = 80
     # print width
     # TODO potential enhancenment of loglevel nd outputredirection - add
     # fill param to fill the whole line
