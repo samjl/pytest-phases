@@ -48,7 +48,6 @@ class SessionStatus(object):
 
     exec_func_fix = None  # Currently executing setup fixture or test function
     active_setups = []
-    # completed_teardowns = []
 
     module = None
     class_name = None
@@ -96,12 +95,10 @@ class Result(object):
         self.phase = SessionStatus.phase
         self.scope = scope
         self.test_function = SessionStatus.test_function
-        self.fixture_name = fixture_name
-
         if self.phase == "teardown":
-            self.active = SessionStatus.active_setups[-1]
+            self.fixture_name = SessionStatus.active_setups[-1]
         else:
-            self.active = SessionStatus.exec_func_fix
+            self.fixture_name = SessionStatus.exec_func_fix
 
         # Additional attributes for keeping track of the result
         # FIXME currently not used
@@ -118,9 +115,8 @@ class Result(object):
             f["Module"] = self.module
             f["Phase"] = self.phase
             f["Scope"] = self.scope
-            # f["Fixture Name"] = self.fixture_name
-            f["Active"] = self.active
-            # f["Test Function"] = self.test_function
+            f["Source Fixture/Function"] = self.fixture_name
+            f["Test Function"] = self.test_function
             f["ID"] = hex(id(self))[-4:]
             f["Tb ID"] = hex(id(self.traceback_link))[-4:] if \
                 self.traceback_link else None

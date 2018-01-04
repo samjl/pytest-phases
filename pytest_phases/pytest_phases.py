@@ -32,10 +32,7 @@ from common import (
     DEBUG,
     debug_print
 )
-from loglevels import (
-    LogLevel,
-    get_current_index
-)
+from loglevels import LogLevel
 from outcomes import (
     Outcomes,
     plural,
@@ -199,16 +196,8 @@ def pytest_runtest_setup(item):
     SessionStatus.run_order.append((SessionStatus.module,
                                     SessionStatus.class_name,
                                     item.name))
-    # TODO use SessionStatus.run_order[-1][1] instead of test_function
-    SessionStatus.test_function = item.name
-    # SessionStatus.module = item.parent.name  # FIXME could be class?
     # TODO module if initial parent was class, otherwise session
     # item.parent.parent.name
-    # Ignore the last fixture name 'request' TODO test if always true
-    SessionStatus.test_fixtures[item.name] = item.fixturenames[:-1]
-    # SessionStatus.phase = "setup"
-    debug_print("Fixture names: {}".format(SessionStatus.test_fixtures[
-                 item.name]), DEBUG["phases"])
 
     outcome = yield
     debug_print("Test SETUP - Complete {}, outcome: {}".format(item, outcome),
@@ -257,72 +246,63 @@ def pytest_runtest_setup(item):
 # Introduced in pytest 3.0.0
 @pytest.hookimpl(hookwrapper=True)
 def pytest_fixture_setup(fixturedef, request):
-    # Phase must be setup - check
-
-    # FIXME workaround for pytest bug
-    # https://github.com/pytest-dev/pytest/issues/3032
-    SessionStatus.phase = "setup"
-    try:
-        print "%%%%% attempting to set {} %%%%%%".format(request._pyfuncitem.name)
-        SessionStatus.test_function = request._pyfuncitem.name
-    except Exception:
-        print "%%%% ERROR %%%%"
-
     print("**************** pytest_fixture_setup start *********************")
     debug_print("Fixture SETUP for {0.argname} with {0.scope} scope"
                 .format(fixturedef), DEBUG["scopes"])
+
+    # Setting the phase, test_function, active_setups and test_fixtures is
+    # done here (rather than in pytest_runtest_setup) as a workaround for
+    # pytest bug https://github.com/pytest-dev/pytest/issues/3032
+    SessionStatus.phase = "setup"
+    SessionStatus.test_function = request._pyfuncitem.name
+
+    for test_func in SessionStatus.active_setups:
+        # Remove any fixtures not already removed (in
+        # pytest_fixture_post_finalizer) - parameterized module scoped
+        # fixtures. Search for "[" to ensure fixture is parameterized.
+        if test_func.startswith("{}[".format(fixturedef.argname)):
+            SessionStatus.active_setups.remove(test_func)
+            # TODO raise a (pytest-)warning
+
     if hasattr(request, "param"):
         setup_params = "[{}]".format(request.param)
     else:
         setup_params = ""
     setup_args = "{}{}".format(fixturedef.argname, setup_params)
-    # SessionStatus.active_setups.append(fixturedef.argname)
     SessionStatus.active_setups.append(setup_args)
-    # FIXME check that the setup is not already in the list - assert if it is
-    # SessionStatus.exec_func_fix = fixturedef.argname
+    SessionStatus.test_fixtures[SessionStatus.test_function] = list(SessionStatus.active_setups)
     SessionStatus.exec_func_fix = setup_args
+
     yield
-    # SessionStatus.exec_func_fix = None  # FIXME required?
+
     debug_print("Fixture SETUP for {0.argname} with {0.scope} scope "
                  "COMPLETE".format(fixturedef), DEBUG["scopes"])
-    # debug_print("Completed setups: {}".format(SessionStatus.active_setups),
-    #              DEBUG["scopes"])
     print("**************** pytest_fixture_setup end ***********************")
 
 
 # Introduced in pytest 3.0.0
 @pytest.hookimpl(hookwrapper=True)
 def pytest_fixture_post_finalizer(fixturedef, request):
-    # Phase must be teardown - check
     # FIXME check that the phase is teardown
     print("**************** pytest_fixture_post_finalizer start *************")
     debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope"
                 .format(fixturedef), DEBUG["scopes"])
-    # debug_print("Fixture cached results: {}".format(fixturedef.cached_result),
-    #              DEBUG["scopes"])
+
     yield
     # DEBUG seem to get multiple module based executions of this code ???
-    # print "trying to remove {} from {}".format(fixturedef.argname,
-    #                                            SessionStatus.active_setups)
+
     if hasattr(request, "param"):
         setup_params = "[{}]".format(request.param)
     else:
         setup_params = ""
     setup_args = "{}{}".format(fixturedef.argname, setup_params)
     try:
-        # SessionStatus.active_setups.remove(fixturedef.argname)
         SessionStatus.active_setups.remove(setup_args)
     except ValueError as e:
         print e
-    # else:
-    #     SessionStatus.completed_teardowns.append(fixturedef.argname)
 
     debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope "
                  "COMPLETE".format(fixturedef), DEBUG["scopes"])
-    # debug_print("Fixture cached results: {}".format(fixturedef.cached_result),
-    #              DEBUG["scopes"])
-    # debug_print("Completed teardowns: {}".format(
-    #              SessionStatus.completed_teardowns), DEBUG["scopes"])
     print("**************** pytest_fixture_post_finalizer end ***************")
 
 
@@ -581,9 +561,9 @@ def pytest_terminal_summary(terminalreporter):
     test_results = OrderedDict()
     # Search backwards through the fixture results to find setup results
     for module_class_function in SessionStatus.run_order:
-        module_name, class_name, test_function = module_class_function
+        module_name, class_name, test_func = module_class_function
         debug_print("Setup teardown fixture results to collate: {}".format(
-            SessionStatus.test_fixtures[test_function]), DEBUG["summary"])
+            SessionStatus.test_fixtures[test_func]), DEBUG["summary"])
 
         # TODO if no fixtures in fixture_results the phase must be passed
         # fixtures = SessionStatus.test_fixtures[test_function]
@@ -593,22 +573,28 @@ def pytest_terminal_summary(terminalreporter):
             fixture_results[phase] = {"overall": {}}
             # Module scoped fixtures
             m_res = _filter_scope_phase("module", "module", module_name, phase)
-            fixture_results[phase]["module"] = _filter_fixture(m_res)
+            # remove module results for fixtures not listed in
+            # SessionStatus.test_fixtures[test_function]
+            m_res_cut = []
+            for res in m_res:
+                if res.fixture_name in SessionStatus.test_fixtures[test_func]:
+                    m_res_cut.append(res)
+            fixture_results[phase]["module"] = _filter_fixture(m_res_cut)
             # Class scoped fixtures
             c_res = _filter_scope_phase("class_name", "class", class_name,
-                                       phase)
+                                        phase)
             fixture_results[phase]["class"] = _filter_fixture(c_res)
             # Function scoped fixtures
             f_res = _filter_scope_phase("test_function", "function",
-                                       test_function, phase)
+                                        test_func, phase)
             fixture_results[phase]["function"] = _filter_fixture(f_res)
         # Call (test function) results
-        call = filter(lambda x: x.test_function == test_function and
+        call = filter(lambda x: x.test_function == test_func and
                       x.phase == "call", Verifications.saved_results)
         call_res_summary = _results_summary(call)
         fixture_results["call"] = {"results": call,
                                    "overall": {"saved": call_res_summary}}
-        test_results[test_function] = fixture_results
+        test_results[test_func] = fixture_results
 
     # Parse the pytest reports
     # Extract report type, outcome, duration, when (phase), location (test
@@ -804,9 +790,9 @@ def _get_phase_summary_result(overall):
         # TODO check this is the call phase
         return "not run (no report)"
     for result_condition, result_text in outcome_conditions:
-        debug_print("Checking saved results: {}, condition result = {}"
-                    .format(overall, result_condition(overall)),
-                    DEBUG["summary"])
+        # debug_print("Checking saved results: {}, condition result = {}"
+        #             .format(overall, result_condition(overall)),
+        #             DEBUG["summary"])
         if result_condition(overall):
             return result_text  # falls out to "passed" if no other
 
