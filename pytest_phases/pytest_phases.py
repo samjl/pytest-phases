@@ -317,6 +317,7 @@ def pytest_pyfunc_call(pyfuncitem):
     print("**************** pytest_pyfunc_call start ************************")
     debug_print("CALL - Starting {}".format(pyfuncitem.name), DEBUG["phases"])
     SessionStatus.exec_func_fix = pyfuncitem.name
+    SessionStatus.test_function = pyfuncitem.name
 
     outcome = yield
     debug_print("CALL - Completed {}, outcome {}".format(pyfuncitem, outcome),
