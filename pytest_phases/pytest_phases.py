@@ -199,6 +199,11 @@ def pytest_runtest_setup(item):
     # TODO module if initial parent was class, otherwise session
     # item.parent.parent.name
 
+    # Set test fixtures here (for tests without function fixtures or having
+    # fixtures that are already setup). Overridden in pytest_fixture_setup
+    # if it is executed.
+    SessionStatus.test_fixtures[item.name] = list(SessionStatus.active_setups)
+
     outcome = yield
     debug_print("Test SETUP - Complete {}, outcome: {}".format(item, outcome),
                 DEBUG["phases"])
