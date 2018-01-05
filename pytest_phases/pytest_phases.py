@@ -214,18 +214,9 @@ def pytest_runtest_setup(item):
 
     print("**************** pytest_runtest_setup raise **********************")
     if raised_exc:
-        # Exception has been raised in the setup phase:
-        # Could be an exception:
-        # 1. raised by a setup function (save exception result),
-        # 2. raised by a setup function, caught, saved and re-raised by
-        #    the set_scope wrapper (don't re-save).
-        stack_trace = traceback.extract_tb(raised_exc[2])
-        if not stack_trace[-2][2] == "_set_scope_wrapper" and \
-                not stack_trace[-4][2] == "_set_scope_wrapper" and \
-                raised_exc[0] != VerificationException and \
-                raised_exc[0] != WarningException:
-            # Detect an exception NOT already re-raised by the scope
-            # wrapper. Save it so it is printed in the results table.
+        if raised_exc[0] not in (WarningException, VerificationException):
+            # Detect a regular assertion (assert) raised by the setup phase.
+            # Save it so it is printed in the results table.
             _save_non_verify_exc(raised_exc)
             set_saved_raised()
         else:
@@ -361,19 +352,10 @@ def pytest_runtest_teardown(item, nextitem):
 
     print("**************** pytest_runtest_teardown raise *******************")
     if raised_exc:
-        # Exception has been raised in the setup phase:
-        # Could be an exception:
-        # 1. raised by a setup function (save exception result),
-        # 2. raised by a setup function, caught, saved and re-raised by
-        #    the set_scope wrapper (don't re-save).
-        stack_trace = traceback.extract_tb(raised_exc[2])
-        if not stack_trace[-2][2] == "_set_scope_wrapper" and \
-                not stack_trace[-4][2] == "_set_scope_wrapper" and \
-                raised_exc[0] != VerificationException and \
-                raised_exc[0] != WarningException:
-            # Detect an exception NOT already re-raised by the scope
-            # wrapper. Save it so it is printed in the results table.
-            _save_non_verify_exc(raised_exc)
+        if raised_exc[0] not in (WarningException, VerificationException):
+            # Detect a regular assertion (assert) raised by the setup phase.
+            # Save it so it is printed in the results table.
+            _save_non_verify_exc(raised_exc, td=SessionStatus.prev_teardown)
             set_saved_raised()
         else:
             debug_print("TEARDOWN - Found an exception already re-raised by "
