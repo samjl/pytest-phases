@@ -5,6 +5,7 @@
 # @brief pytest phases plugin:loglevels - functions to assign and print a log
 # level to test log messages. Log messages (including standard print function)
 # are assigned a log level and associated step.
+from common import CONFIG
 
 MIN_LEVEL = 0
 MAX_LEVEL = 5
@@ -121,13 +122,13 @@ def set_log_parameters(msg, log_level):
         MultiLevelLogging.current_l1_msg = msg
     step, index = get_next_step(valid_log_level)
     MultiLevelLogging.log_level_set = True
-    if MultiLevelLogging.output_redirect_enabled:
-        # if the outputredirect plugin is installed and enabled
-        print msg
-    else:
+    if CONFIG["no-redirect"].value:
         # Don't print index as it doesn't mean much in this situation
         # (not every message is given an index)
         print "{}-{} {}".format(valid_log_level, step, msg)
+    else:
+        # if the output redirect enabled
+        print msg
     MultiLevelLogging.log_level_set = False
 
 
@@ -138,7 +139,6 @@ class MultiLevelLogging:
     current_level = 1
     current_step = [0] * (MAX_LEVEL - MIN_LEVEL)
     log_level_set = False
-    output_redirect_enabled = False
     current_l1_msg = None
 
 
