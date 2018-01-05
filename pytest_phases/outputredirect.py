@@ -135,9 +135,3 @@ class LogOutputRedirection:
                     f.write("[")
                 json.dump(log_entry, f, separators=(",", ":"))
                 f.write("]\n")
-
-
-def _debug_print(msg, flag):
-    # Print a debug message if the corresponding flag is set.
-    if flag.enabled:
-        print "DEBUG({}): {}".format(flag.name, msg)
