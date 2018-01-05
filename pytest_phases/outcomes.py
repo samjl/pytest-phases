@@ -97,6 +97,9 @@ outcome_conditions = (
     # continued. Mark as passed if above conditions don't indicate a
     # failure/warning in call (i.e. ignore the report)
     # FIXME how to catch any other conditions
+
+    (lambda o: o["pytest"]["type"] == "failed", Outcomes.fail),
+
     (lambda o: True, Outcomes.passed)
     # TODO drop out to unknown or pytest outcome?
 )
