@@ -293,6 +293,8 @@ def pytest_fixture_post_finalizer(fixturedef, request):
     else:
         setup_params = ""
     setup_args = "{}{}".format(fixturedef.argname, setup_params)
+    # keep track of previous (this) teardown fixture
+    SessionStatus.prev_teardown = setup_args
     try:
         SessionStatus.active_setups.remove(setup_args)
     except ValueError as e:
@@ -355,7 +357,7 @@ def pytest_runtest_teardown(item, nextitem):
         if raised_exc[0] not in (WarningException, VerificationException):
             # Detect a regular assertion (assert) raised by the setup phase.
             # Save it so it is printed in the results table.
-            _save_non_verify_exc(raised_exc, td=SessionStatus.prev_teardown)
+            _save_non_verify_exc(raised_exc, use_prev_teardown=True)
             set_saved_raised()
         else:
             debug_print("TEARDOWN - Found an exception already re-raised by "
@@ -369,7 +371,7 @@ def pytest_runtest_teardown(item, nextitem):
             _raise_first_saved_exc_type(WarningException)
 
 
-def _save_non_verify_exc(raised_exc):
+def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
     exc_type = "O"
     exc_msg = str(raised_exc[1]).strip().replace("\n", " ")
     debug_print("Saving caught exception (non-plugin): {}, {}".format(
@@ -443,7 +445,8 @@ def _save_non_verify_exc(raised_exc):
     s_res.append(Result(exc_msg, "FAIL", exc_type, fixture_scope,
                         module_function_line, [trace_complete[-1]],
                         True, source_locals=locals_all_frames[-1],
-                        fail_traceback_link=s_tb[-1]))
+                        fail_traceback_link=s_tb[-1],
+                        use_prev_teardown=use_prev_teardown))
     s_tb[-1].result_link = s_res[-1]
 
 

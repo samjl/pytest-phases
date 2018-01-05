@@ -41,17 +41,17 @@ class VerificationException(Exception):
 class SessionStatus(object):
     # Track the session status
     phase = None  # Current test phase: setup, call, teardown
-    run_order = []  # Test execution order contains tuples of parent,
-    # test function
-    test_fixtures = OrderedDict()  # Test function: list of fixtures
+    run_order = []  # Test execution order contains tuples of parents and
+    # tests e.g. module, class, test
     test_function = None  # Currently active test - set at beginning of setup
-
+    test_fixtures = OrderedDict()  # Test function: list of fixtures per test
     exec_func_fix = None  # Currently executing setup fixture or test function
-    active_setups = []
-
-    module = None
-    class_name = None
-    session = None
+    active_setups = []  # The setup fixtures currently active (haven't been
+    # torn down yet)
+    module = None  # Parent module of current test
+    class_name = None  # Parent class of current test if applicable
+    prev_teardown = None  # Track the most recently completed teardown
+    # fixture so it can be assigned to any regular assertions raised
 
 
 class Verifications:
@@ -67,7 +67,8 @@ class Result(object):
     """
     def __init__(self, message, status, type_code, scope, source_function,
                  source_code, raise_immediately, source_locals=None,
-                 fail_traceback_link=None):
+                 # fail_traceback_link=None, td=None):
+                 fail_traceback_link=None, use_prev_teardown=False):
         # Basic result information
         self.step = get_current_l1_msg()
         self.msg = message
@@ -94,7 +95,12 @@ class Result(object):
         self.phase = SessionStatus.phase
         self.scope = scope
         self.test_function = SessionStatus.test_function
-        if self.phase == "teardown":
+        if use_prev_teardown:
+            # required to track regular assertions raised during teardown
+            self.fixture_name = SessionStatus.prev_teardown
+        elif self.phase == "teardown":
+            # workaround for intermediate (parameterized) module teardown
+            # pytest bug https://github.com/pytest-dev/pytest/issues/3032
             self.fixture_name = SessionStatus.active_setups[-1]
         else:
             self.fixture_name = SessionStatus.exec_func_fix
