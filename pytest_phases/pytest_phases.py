@@ -33,6 +33,7 @@ from common import (
     debug_print
 )
 from loglevels import LogLevel
+from mongo_connector import MongoConnector
 from outcomes import (
     Outcomes,
     plural,
