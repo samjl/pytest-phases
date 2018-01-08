@@ -840,21 +840,6 @@ def pytest_namespace():
                              warning, warn_condition, warn_message,
                              full_method_trace, stop_at_test, log_level)
 
-    def get_saved_results():
-        """Development only function.
-        """
-        return Verifications.saved_results, Verifications.saved_tracebacks
-
-    def get_session_status():
-        return {
-            "class": SessionStatus.class_name,
-            "module": SessionStatus.module,
-            "function": SessionStatus.test_function,
-            "fixtures": SessionStatus.test_fixtures
-        }
-
     name = {"log": LogLevel,
-            "verify": verify,
-            "get_saved_results": get_saved_results,
-            "get_session_status": get_session_status}
+            "verify": verify}
     return name
