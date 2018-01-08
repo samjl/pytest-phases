@@ -21,6 +21,7 @@ from loglevels import (
     is_level_set,
     set_level
 )
+from verify import SessionStatus
 
 
 def _is_start_or_end(msg):
@@ -135,3 +136,6 @@ class LogOutputRedirection:
                     f.write("[")
                 json.dump(log_entry, f, separators=(",", ":"))
                 f.write("]\n")
+
+        # Insert a log message to MongoDB
+        SessionStatus.mongo.insert_log_message(index, level, step, msg)

@@ -4,13 +4,18 @@
 # @created 03/01/18
 # @brief pytest phases plugin:mongo connector -
 
+import datetime
 import pytest
 from pymongo import MongoClient
+from verify import SessionStatus
 
 # don't bother with a timestamp - use the ObjectId
 # test run (jenkins) or more generic session ID (could be an incremental
 # counter in the
 # database)
+
+# DEBUG
+DROP_COLLECTIONS = True
 
 
 class MongoConnector(object):
@@ -24,6 +29,15 @@ class MongoConnector(object):
         # phase
         # fixture
         # test function
+        self.test_oid = None
+        self.link_oid = None
+
+        if DROP_COLLECTIONS:
+            self.db.drop_collection("sessioncounter")
+            self.db.drop_collection("sessions")
+            self.db.drop_collection("testresults")
+            self.db.drop_collection("loglinks")
+            self.db.drop_collection("testlogs")
 
     def _get_session_id(self):
         res = self.db.sessioncounter.update_one({"_id": 0}, {"$inc": {
@@ -53,54 +67,60 @@ class MongoConnector(object):
         # could keep track of currently executing test module, function etc.
         pass
 
-    # DEBUG test_module for Aviat is the test ID
-    def init_module(self, test_module, run):
-        # test run
-        # test ID
-
-        # log link
-        # overall result
-        # verifications - list of documents
-        # phases - phase results
-        # fixtures applied
-        pass
+    # # DEBUG test_module for Aviat is the test ID
+    # def init_module(self, test_module, run):
+    #     # test run
+    #     # test ID
+    #
+    #     # log link
+    #     # overall result
+    #     # verifications - list of documents
+    #     # phases - phase results
+    #     # fixtures applied
+    #     pass
 
     # Every test function - created at pytest setup
-    def init_test_result(self, i):
-        session_status = pytest.get_session_status()
+    def init_test_result(self, i, test_function, test_fixtures):
+        # session_status = pytest.get_session_status()
         # TODO check session_id is not None
         log_link = {
             "sessionId": MongoConnector.session_id,
-            "class": session_status["class"],
-            "module": session_status["module"],
-            "testFunction": session_status["function"],
+            "class": SessionStatus.class_name,
+            "module": SessionStatus.module,
+            "testFunction": SessionStatus.test_function,
             "logIds": []
         }
         res = self.db.loglinks.insert_one(log_link)
-        link_id = res.inserted_id
+        self.link_oid = res.inserted_id
 
         test_result = {
             "sessionId": MongoConnector.session_id,
-            "class": session_status["class"],
-            "module": session_status["module"],
-            "testFunction": session_status["function"],
-            "fixtures": session_status["fixtures"][session_status["function"]],
+            "class": SessionStatus.class_name,
+            "module": SessionStatus.module,
+            "testFunction": test_function,  # SessionStatus.test_function,
+            # TODO add fixtures later
+            "fixtures": test_fixtures,  #
+            # SessionStatus.test_fixtures[SessionStatus.test_function],
             "verifications": [],
             # "setup" - update status as setup progresses and verifications
             "setup": {"logStart": i},
             # are saved
             # "call"
             # "teardown"
-            "logLink": link_id
+            "logLink": self.link_oid,
             # "result"  - single overall test result e.g. Warning,
             # Setup Failure
+            "result": "pending",
             # "summary" - All saved results summary Setup: P:, F: W: could
             # be in "setup" field above
-
+            "summary": "pending",
+            "status": "in-progress",
             # Any extra test specific data can be added on as needed basis
             # e.g. dataplot data (link), protection switch times
         }
         res = self.db.testresults.insert_one(test_result)
+        self.test_oid = res.inserted_id
+
         return res.inserted_id
 
         # init the loglink entry
@@ -117,14 +137,10 @@ class MongoConnector(object):
     # Insert the message to the testlogs collection
     # and insert the message ObjectId to the list in the corresponding
     # testloglinks item (add if required {index=1})
-    def insert_log_message(self):
+    # TODO timestamp in ObjectId is only to the nearest second
+    def insert_log_message(self, index, level, step, message):
         # test run
         # test ID
-
-        # index
-        # level
-        # step
-        # message
 
         # SessionStatus.class_name
         # SessionStatus.module
@@ -133,7 +149,19 @@ class MongoConnector(object):
 
         # code source
         # debug
-        pass
+
+        msg = {
+            "index": index,
+            "level": level,
+            "step": step,
+            "message": message,
+            "timestamp": datetime.datetime.utcnow(),
+            "testResult": self.test_oid
+        }
+        res = self.db.testlogs.insert_one(msg)
+        # Update self.db.loglinks with the ObjectId of this message entry
+        self.db.testloglinks.update_one({"_id": self.link_oid},
+                                        {"$push": {"logIds": res.inserted_id}})
 
     # Insert a saved verification to the relevant testresults entry
     # and insert the log message and link to testlogs and testloglinks

@@ -32,7 +32,10 @@ from common import (
     DEBUG,
     debug_print
 )
-from loglevels import LogLevel
+from loglevels import (
+    LogLevel,
+    get_current_index
+)
 from mongo_connector import MongoConnector
 from outcomes import (
     Outcomes,
@@ -106,6 +109,8 @@ def pytest_configure(config):
         print "{0}: type={1.value_type}, val={1.value}".format(option, CONFIG[
             option])
 
+    SessionStatus.mongo = MongoConnector()
+
     if not CONFIG["no-redirect"].value:
         debug_print("Perform output redirection", DEBUG["output-redirect"])
         log_redirect = LogOutputRedirection()
@@ -129,8 +134,6 @@ def pytest_configure(config):
          'w').close()
     LogOutputRedirection.session_file_path = os.path.join(
         LogOutputRedirection.root_directory, "session.json")
-
-    SessionStatus.mongo = MongoConnector()
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -211,6 +214,10 @@ def pytest_runtest_setup(item):
     # if it is executed.
     SessionStatus.test_fixtures[item.name] = list(SessionStatus.active_setups)
 
+    current_log_index = get_current_index()
+    SessionStatus.test_object_id = SessionStatus.mongo.init_test_result(
+        current_log_index, item.name, item.fixturenames[:-1])
+
     outcome = yield
     debug_print("Test SETUP - Complete {}, outcome: {}".format(item, outcome),
                 DEBUG["phases"])
@@ -276,6 +283,9 @@ def pytest_fixture_setup(fixturedef, request):
     SessionStatus.test_fixtures[SessionStatus.test_function] = \
         list(SessionStatus.active_setups)
     SessionStatus.exec_func_fix = setup_args
+    SessionStatus.mongo.update_test_result(
+        {"_id": SessionStatus.test_object_id},
+        {"$set": {"fixtures": SessionStatus.test_fixtures[SessionStatus.test_function]}})
 
     yield
 
@@ -318,6 +328,10 @@ def pytest_pyfunc_call(pyfuncitem):
     debug_print("CALL - Starting {}".format(pyfuncitem.name), DEBUG["phases"])
     SessionStatus.exec_func_fix = pyfuncitem.name
     SessionStatus.test_function = pyfuncitem.name
+    # Update mongo test result
+    SessionStatus.mongo.update_test_result(
+        {"_id": SessionStatus.test_object_id},
+        {"$set": {"testFunction": SessionStatus.test_function}})
 
     print("**************************************************************")
     i = get_current_index()

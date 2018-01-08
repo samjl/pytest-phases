@@ -58,7 +58,7 @@ class SessionStatus(object):
 
     # MongoDB
     mongo = None
-    test_object_id = None
+    test_object_id = None  # Same as mongo.test_oid
 
 
 class Verifications:
