@@ -5,3 +5,4 @@ build/
 .cache/
 *.pyc
 .tox/
+requirements.txt
