@@ -105,10 +105,6 @@ class Result(object):
         else:
             self.fixture_name = SessionStatus.exec_func_fix
 
-        # Additional attributes for keeping track of the result
-        # FIXME currently not used
-        self.printed = False
-
     def formatted_dict(self):
         # TODO add session
         f = OrderedDict()
@@ -129,10 +125,9 @@ class Result(object):
                 raised = "Y" if self.traceback_link.raised else "N"
             else:
                 raised = "-"
-            e = "{}.{}.{}.{}".format(self.type_code,
-                                     "Y" if self.raise_immediately else "N",
-                                     "Y" if self.printed else "N",
-                                     raised)
+            e = "{}.{}.{}".format(self.type_code,
+                                  "Y" if self.raise_immediately else "N",
+                                  raised)
             f["Extra"] = e
         return f
 
@@ -426,7 +421,7 @@ def print_saved_results(column_key_order="Step", extra_info=False):
                         column_key_order)
         for result in to_print:
             _print_result(result, key_val_lengths, column_key_order)
-        print "Extra fields: raise_immediately.printed.raised"
+        print "Extra fields: raise_immediately.raised"
 
 
 def _print_result(result, key_val_lengths, column_key_order):
