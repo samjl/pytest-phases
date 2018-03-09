@@ -34,7 +34,7 @@ class LogOutputRedirection:
     # Output redirection class. Redirects sys.stdout and stderr to
     # write method below.
     messageIndex = 0
-    json_log = None
+    json_log = True
     # json log file paths
     root_directory = None
     session_file_path = None  # created at plugin configuration stage

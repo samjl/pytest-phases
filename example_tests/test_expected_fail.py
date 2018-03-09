@@ -15,36 +15,36 @@ from pytest import (
 )
 
 
-# # Test outcome: expected fail
-# @pytest.mark.xfail()
-# def test_expected_fail():  # xFailed report (strict=False)
-#     log.high_level_step("----------------------------------------------------")
-#     log.high_level_step("expected to fail and fails")
-#     a = 0
-#     b = 1
-#     assert a == b, "Expected to fail"
-#
-#
-# # Test outcome: expected fail
-# # with strict=True xPass results become failures (not this test)
-# @pytest.mark.xfail(strict=True)
-# def test_expected_fail_strict():  # xFailed report (strict=False)
-#     log.high_level_step("----------------------------------------------------")
-#     log.high_level_step("expected to fail and fails (strict)")
-#     a = 0
-#     b = 1
-#     assert a == b, "Expected to fail"
-#
-#
-# # Test outcome: unexpected pass
-# # xPassed report (strict=False)
-# @pytest.mark.xfail()
-# def test_unexpected_pass():
-#     log.high_level_step("----------------------------------------------------")
-#     log.high_level_step("expected to fail and unexpectedly passes")
-#     a = 1
-#     b = 1
-#     assert a == b, "Expected to fail but passes"
+# Test outcome: expected fail
+@pytest.mark.xfail()
+def test_expected_fail():  # xFailed report (strict=False)
+    log.high_level_step("----------------------------------------------------")
+    log.high_level_step("expected to fail and fails")
+    a = 0
+    b = 1
+    assert a == b, "Expected to fail"
+
+
+# Test outcome: expected fail
+# with strict=True xPass results become failures (not this test)
+@pytest.mark.xfail(strict=True)
+def test_expected_fail_strict():  # xFailed report (strict=False)
+    log.high_level_step("----------------------------------------------------")
+    log.high_level_step("expected to fail and fails (strict)")
+    a = 0
+    b = 1
+    assert a == b, "Expected to fail"
+
+
+# Test outcome: unexpected pass
+# xPassed report (strict=False)
+@pytest.mark.xfail()
+def test_unexpected_pass():
+    log.high_level_step("----------------------------------------------------")
+    log.high_level_step("expected to fail and unexpectedly passes")
+    a = 1
+    b = 1
+    assert a == b, "Expected to fail but passes"
 
 
 # Test outcome: failure
@@ -59,48 +59,40 @@ def test_unexpected_pass_strict():
     assert a == b, "Expected to fail but passes"
 
 
-# # Test outcome: expected fail
-# # If condition is True xFail if test fails
-# @pytest.mark.xfail(sys.version_info <= (3, 3),
-#                    reason="expected to fail if version is <= 3.3")
-# def test_expected_fail_less():
-#     log.high_level_step("----------------------------------------------------")
-#     log.high_level_step("expected fail less than with reason")
-#     log.detail_step("sys.version_info = {}".format(sys.version_info))
-#     a = 0
-#     b = 1
-#     # Test xFails if this asserts, and unexpectedly passes if not (because
-#     # version is not > 3.3)
-#     # FIXME if the above comment is on next line it prints in the traceback
-#     # up to the comma
-#     assert a == b, "Fail"
-#
-#
-# # Test outcome: failure (if test function asserts else passes)
-# # TODO think about changing this result to unexpected pass or be careful in
-# # the documenting this behaviour as it is different to unexpected pass of a
-# # type passed
-# # test function - not sure if this is even possible because the report is
-# @pytest.mark.xfail(sys.version_info > (3, 3), reason="expected to fail if "
-#                                                      "version is > 3.3")
-# def test_expected_fail_greater():
-#     log.high_level_step("----------------------------------------------------")
-#     log.high_level_step("expected fail greater than with reason")
-#     log.detail_step("sys.version_info = {}".format(sys.version_info))
-#     a = 0
-#     b = 1
-#     # Test fails if this asserts, and passes if not (because version is not >
-#     # 3.3)
-#     # assert a == b, "Fail"
-#
-#
-# def test_expected_fail_during():
-#     pytest.xfail("xfail reason")
-#
-#
-# # @pytest.mark.parametrize("test_input_a", [1, 2, 3])
-# # def test_params(test_input_a):
-# #     log.high_level_step("----------------------------------------------------")
-# #     log.high_level_step("test_params - parameter = {}".format(test_input_a))
-# #     verify(test_input_a < 3, "Is param<3", log.TEST_LT,
-# #            warn_condition=test_input_a < 2, warn_message="Is param<2")
+# Test outcome: expected fail
+# If condition is True xFail if test fails
+@pytest.mark.xfail(sys.version_info <= (3, 3),
+                   reason="expected to fail if version is <= 3.3")
+def test_expected_fail_less():
+    log.high_level_step("----------------------------------------------------")
+    log.high_level_step("expected fail less than with reason")
+    log.detail_step("sys.version_info = {}".format(sys.version_info))
+    a = 0
+    b = 1
+    # Test xFails if this asserts, and unexpectedly passes if not (because
+    # version is not > 3.3)
+    # FIXME if the above comment is on next line it prints in the traceback
+    # up to the comma
+    assert a == b, "Fail"
+
+
+# Test outcome: failure (if test function asserts else passes)
+# TODO think about changing this result to unexpected pass or be careful in
+# the documenting this behaviour as it is different to unexpected pass of a
+# type passed
+# test function - not sure if this is even possible because the report is
+@pytest.mark.xfail(sys.version_info > (3, 3), reason="expected to fail if "
+                                                     "version is > 3.3")
+def test_expected_fail_greater():
+    log.high_level_step("----------------------------------------------------")
+    log.high_level_step("expected fail greater than with reason")
+    log.detail_step("sys.version_info = {}".format(sys.version_info))
+    a = 0
+    b = 1
+    # Test fails if this asserts, and passes if not (because version is not >
+    # 3.3)
+    # assert a == b, "Fail"
+
+
+def test_expected_fail_during():
+    pytest.xfail("xfail reason")

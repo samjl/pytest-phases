@@ -15,7 +15,6 @@ class Outcomes(object):
     warning = "warned"
     setup_warning = "setup warned"
     teardown_warning = "teardown warned"
-    # TODO do these also need to be phase specific?
     expected_fail = "expected failure"
     unexpected_pass = "unexpectedly passed"
     passed = "passed"

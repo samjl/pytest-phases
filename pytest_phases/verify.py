@@ -25,8 +25,11 @@ from loglevels import (
     get_current_level
 )
 
-# TODO The traceback depth set here is just an arbitrary figure and could be
-# user configurable up to the maximum (1000?).
+
+# The traceback depth set here is just an arbitrary figure and could be
+# FIXME user configurable up to the maximum (1000?). In future this could be
+# made
+# user configurable.
 MAX_TRACEBACK_DEPTH = 20
 
 
@@ -234,8 +237,8 @@ def _get_complete_traceback(stack, start_depth, stop_at_test,
             tb_new.extend(source_call)
             tb[0:0] = tb_new
         else:
-            # FIXME
-            break
+            # Failed to retrieve calling traceback
+            break  # FIXME should this be continue?
     return tb
 
 
@@ -295,18 +298,10 @@ def trace_end_detected(func_call_line):
 
 def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
                  full_method_trace, raise_immediately):
-    # TODO update this
     """Save a result of verify/_verify.
     Items to save:
-    Saved result - Step,
-                   Message,
-                   Status,
-                   Extra Info (instance of ResultInfo)
-    Traceback - type,
-                tb,
-                complete,
-                raised,
-                res_index
+    Result object for all results, plus FailureTraceback object for results
+    other than pass.
     """
     stack = inspect.stack()
     depth = 3
@@ -316,20 +311,25 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
     fixture_scope = None
     if SessionStatus.phase != "call":
         for d in range(depth, depth+6):  # TODO use max tb depth?
-            # frame = stack[d][0]
+            # For setup and teardown phases (in fixture), parse locals in
+            # stack to extract the fixture name and scope
+            # Locals for current frame
             stack_locals = OrderedDict(inspect.getargvalues(stack[d][0]).
                                        locals.items())
             for item in stack_locals.values():
-                # print item
                 if isinstance(item, FixtureDef):
                     fixture_name = item.argname
                     fixture_scope = item.scope
                     debug_print("scope for {} is {} [{}]".format(fixture_name,
-                                                                 fixture_scope, d), DEBUG["verify"])
+                                                                 fixture_scope,
+                                                                 d),
+                                DEBUG["verify"])
             if fixture_scope:
                 break
 
-    # TODO check performance of this - not sure if we want to do it for all
+    # Get the calling function and local vars for all results.
+    # Don't really need to do this for all results, passes? so if
+    # performance suffers this could be removed.
     source_function, source_locals, source_call = \
         _get_calling_func(stack, depth, True, full_method_trace)
     tb_depth_1 = [source_function]

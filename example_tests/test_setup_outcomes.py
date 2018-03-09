@@ -44,22 +44,22 @@ def module_scoped_fix(request):
 #              regular (a)ssert
 @fixture(scope='function',
          params=[
-                 # {"w": False, "s": False, "i": False, "a": False},
-                 {"w": False, "s": False, "i": False, "a": True}
-                 # {"w": False, "s": False, "i": True, "a": False},
-                 # {"w": False, "s": False, "i": True, "a": True},
-                 # {"w": False, "s": True, "i": False, "a": False},
-                 # {"w": False, "s": True, "i": False, "a": True},
-                 # {"w": False, "s": True, "i": True, "a": False},
-                 # {"w": False, "s": True, "i": True, "a": True},
-                 # {"w": True, "s": False, "i": False, "a": False},
-                 # {"w": True, "s": False, "i": False, "a": True},
-                 # {"w": True, "s": False, "i": True, "a": False},
-                 # {"w": True, "s": False, "i": True, "a": True},
-                 # {"w": True, "s": True, "i": False, "a": False},
-                 # {"w": True, "s": True, "i": False, "a": True},
-                 # {"w": True, "s": True, "i": True, "a": False},
-                 # {"w": True, "s": True, "i": True, "a": True}
+                 {"w": False, "s": False, "i": False, "a": False},
+                 {"w": False, "s": False, "i": False, "a": True},
+                 {"w": False, "s": False, "i": True, "a": False},
+                 {"w": False, "s": False, "i": True, "a": True},
+                 {"w": False, "s": True, "i": False, "a": False},
+                 {"w": False, "s": True, "i": False, "a": True},
+                 {"w": False, "s": True, "i": True, "a": False},
+                 {"w": False, "s": True, "i": True, "a": True},
+                 {"w": True, "s": False, "i": False, "a": False},
+                 {"w": True, "s": False, "i": False, "a": True},
+                 {"w": True, "s": False, "i": True, "a": False},
+                 {"w": True, "s": False, "i": True, "a": True},
+                 {"w": True, "s": True, "i": False, "a": False},
+                 {"w": True, "s": True, "i": False, "a": True},
+                 {"w": True, "s": True, "i": True, "a": False},
+                 {"w": True, "s": True, "i": True, "a": True}
                  ])
 def function_scoped_fix(request):
     """Function scoped setup and teardown fixture.

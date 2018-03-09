@@ -59,7 +59,7 @@ CONFIG = {"include-verify-local-vars":
           "root-dir":
           ConfigOption(str, None, "Full path to local base directory to save "
                                   "test logs to"),
-          "no-json":  # TODO Required now? db enable/disable
+          "no-json":
           ConfigOption(bool, False, "Don't save log to JSON file (std out "
                                     "only)")
           }

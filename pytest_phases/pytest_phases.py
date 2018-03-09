@@ -54,9 +54,6 @@ from verify import (
     SessionStatus
 )
 
-# TODO let you specify the exception type to save in verify function - e.g.
-# raise an SNMPError
-
 
 def pytest_addoption(parser):
     print("Adding options")
@@ -167,8 +164,6 @@ def pytest_runtest_setup(item):
     SessionStatus.module = None
 
     def get_module_class(item):
-        # debug_print("{} type: {}".format(d.parent, type(d.parent)),
-        #              DEBUG["summary"])
         if isinstance(item.parent, Class):
             debug_print("Class is {}".format(item.parent.name),
                         DEBUG["scopes"])
