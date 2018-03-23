@@ -93,6 +93,9 @@ def pytest_configure(config):
         except Exception as e:
             print e
 
+    parser.read(os.path.join(config_path, "mongo.cfg"))
+    mongo_hosts = parser.get("general", "hosts").split(",")
+
     for name, val in CONFIG.iteritems():
         cmd_line_val = config.getoption("--{}".format(name))
         if cmd_line_val:
@@ -109,7 +112,7 @@ def pytest_configure(config):
         print "{0}: type={1.value_type}, val={1.value}".format(option, CONFIG[
             option])
 
-    SessionStatus.mongo = MongoConnector()
+    SessionStatus.mongo = MongoConnector(mongo_hosts)
 
     if not CONFIG["no-redirect"].value:
         debug_print("Perform output redirection", DEBUG["output-redirect"])

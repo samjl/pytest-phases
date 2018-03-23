@@ -20,9 +20,11 @@ DROP_COLLECTIONS = True
 
 class MongoConnector(object):
     session_id = None
+    hosts = None
 
-    def __init__(self):
-        self.db = MongoClient().proto
+    def __init__(self, hosts):
+        # TODO add exception/check for hosts is None
+        self.db = MongoClient(hosts).proto
         # test ID
         # test run
 

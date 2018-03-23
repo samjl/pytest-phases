@@ -1,2 +1,3 @@
 include README.md
 include pytest_phases/config.cfg
+include pytest_phases/mongo.cfg
