@@ -6,6 +6,7 @@
 
 import datetime
 import pytest
+from loglevels import MIN_LEVEL, MAX_LEVEL
 from pymongo import MongoClient
 from verify import SessionStatus
 
@@ -21,6 +22,7 @@ DROP_COLLECTIONS = True
 class MongoConnector(object):
     session_id = None
     hosts = None
+    parents = ["-"] * (MAX_LEVEL - MIN_LEVEL)
 
     def __init__(self, hosts):
         # TODO add exception/check for hosts is None
@@ -157,6 +159,8 @@ class MongoConnector(object):
             "level": level,
             "step": step,
             "message": message,
+            "parents": MongoConnector.parents[:level - MIN_LEVEL - 1],
+            "numOfChildren": 0,
             "timestamp": datetime.datetime.utcnow(),
             "testResult": self.test_oid
         }
@@ -164,6 +168,14 @@ class MongoConnector(object):
         # Update self.db.loglinks with the ObjectId of this message entry
         self.db.testloglinks.update_one({"_id": self.link_oid},
                                         {"$push": {"logIds": res.inserted_id}})
+        # Update parent entries in the db: increment the number of children
+        for parent_id in MongoConnector.parents[:level - MIN_LEVEL - 1]:
+            self.db.testlogs.update_one({"_id": parent_id},
+                                        {"$inc": {"numOfChildren": 1}})
+
+        # Update the list of possible parents to include the inserted message
+        # Add inserted _id for the relevant log level
+        MongoConnector.parents[level - MIN_LEVEL - 1] = res.inserted_id
 
     # Insert a saved verification to the relevant testresults entry
     # and insert the log message and link to testlogs and testloglinks
