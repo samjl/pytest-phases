@@ -1,8 +1,9 @@
 ##
-# @file mongo_connector.py
-# @author Sam Lea (samjl) <samjlea@gmail.com>
+# @file mongo.py
+# @author Sam Lea (samjl) <sam.lea@avaitnet.com> <samjlea@gmail.com>
 # @created 03/01/18
-# @brief pytest phases plugin:mongo connector -
+# @brief pytest phases plugin: mongo connector insert to and update log
+# messages in mongoDB
 
 import datetime
 import pytest
