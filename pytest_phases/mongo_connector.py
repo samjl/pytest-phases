@@ -158,7 +158,7 @@ class MongoConnector(object):
             "index": index,
             "level": level,
             "step": step,
-            "message": message,
+            "message": escape_html(message),
             "parents": MongoConnector.parents[:level - MIN_LEVEL - 1],
             "numOfChildren": 0,
             "timestamp": datetime.datetime.utcnow(),
@@ -204,3 +204,11 @@ class MongoConnector(object):
         # warning condition (optional)
         # warning message (optional)
         pass
+
+
+def escape_html(text):
+    for char, replacement in (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"),
+                              ('"', "&quot;"), ("'", "&#039;")):
+        if char in text:
+            text = text.replace(char, replacement)
+    return text
