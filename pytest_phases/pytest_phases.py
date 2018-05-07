@@ -486,6 +486,7 @@ def print_new_results(phase):
             res_info.printed = True
 
 
+@pytest.hookimpl(hookwrapper=True)
 def pytest_terminal_summary(terminalreporter):
     """ override the terminal summary reporting. """
     debug_print("In pytest_terminal_summary", DEBUG["summary"])
@@ -667,7 +668,9 @@ def pytest_terminal_summary(terminalreporter):
 
     # TODO format this summary table nicely
     for test_function, fixture_results in test_results.iteritems():
-        debug_print("************************************", DEBUG["summary"])
+        debug_print("*********************************************************"
+                    "********************************************************",
+                    DEBUG["summary"])
         for phase in ("setup", "call", "teardown"):
             if phase == "setup":
                 for scope in ("module", "class", "function"):
@@ -697,6 +700,10 @@ def pytest_terminal_summary(terminalreporter):
                         fixture_results[phase]["overall"])
         print "{0:<20}{1:<10}{2:<10}{3:<25}{4}".format(
             test_function, "overall", "-", "-", fixture_results["overall"])
+
+    debug_print("*********************************************************"
+                "********************************************************",
+                DEBUG["summary"])
 
     # Print the expected fail, unexpected pass and skip reports exactly as
     # pytest does.
