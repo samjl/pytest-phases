@@ -213,26 +213,31 @@ def pytest_runtest_setup(item):
                 DEBUG["phases"])
 
     print("**************** pytest_runtest_setup raise **********************")
+
+    # Raise a saved error or an error raised by a setup fixture applied to the
+    # current test function but associated by pytest to another test function
+    _raise_existing_setup_error()
+    # TODO should this check be before checking the saved errors? Warn and
+    # Veri..Exceptions
     if raised_exc:
         if raised_exc[0] not in (WarningException, VerificationException):
             # Detect a regular assertion (assert) raised by the setup phase.
             # Save it so it is printed in the results table.
             _save_non_verify_exc(raised_exc)
             set_saved_raised()
-        else:
-            debug_print("SETUP - Found an exception already re-raised by "
-                        "wrapper", DEBUG["phases"])
-    else:
+    else:  # FIXME no longer requried
         # Nothing raised so check if there are any saved results that
         # need to be raised.
         if not CONFIG["continue-on-setup-failure"].value:
             # Re-raise first VerificationException not yet raised.
             # Saved and immediately raised VerificationExceptions are
             # raised here.
+            print("LOOKING FOR SETUP VERIFY EXCEPTIONS TO RAISE")
             _raise_first_saved_exc_type(VerificationException)
         if not CONFIG["continue-on-setup-warning"].value and \
            CONFIG["raise-warnings"].value:
             # Else re-raise first WarningException not yet raised
+            print("LOOKING FOR SETUP WARNINGS TO RAISE")
             _raise_first_saved_exc_type(WarningException)
 
     # TODO could this be done at start of pytest_pyfunc_call?
@@ -369,6 +374,55 @@ def pytest_runtest_teardown(item, nextitem):
         # Else re-raise first WarningException not yet raised
         if CONFIG["raise-warnings"].value:
             _raise_first_saved_exc_type(WarningException)
+
+
+def _raise_existing_setup_error():
+    module_name, class_name, test_func = SessionStatus.run_order[-1]
+    fixture_results = {"setup": {"overall": {}}}
+    # Module scoped fixtures
+    m_res = _filter_scope_phase("module", "module", module_name, "setup")
+    debug_print("Test fixtures for test {}: {}".format(test_func,
+                SessionStatus.test_fixtures[test_func]), DEBUG["scopes"])
+
+    # Remove module results for fixtures not listed in
+    # SessionStatus.test_fixtures[test_function]
+    m_res_cut = []
+    for res in m_res:
+        if res.fixture_name in SessionStatus.test_fixtures[test_func]:
+            m_res_cut.append(res)
+    fixture_results["setup"]["module"] = _filter_fixture(m_res_cut)
+    # Class scoped fixtures
+    c_res = _filter_scope_phase("class_name", "class", class_name,
+                                "setup")
+    c_res_cut = []
+    for res in c_res:
+        if res.fixture_name in SessionStatus.test_fixtures[test_func]:
+            c_res_cut.append(res)
+    fixture_results["setup"]["class"] = _filter_fixture(c_res_cut)
+    debug_print("Module and class scoped setup results and summary (current "
+                "test only): {}".format(fixture_results), DEBUG["scopes"])
+
+    # Results for setup fixtures applied to this test associated with earlier
+    # test functions
+    existing_setup_results = []
+    for scope in ("module", "class"):
+        if fixture_results["setup"][scope]:
+            for res in fixture_results["setup"][scope].values()[0][:-1]:
+                existing_setup_results.append(res)
+    debug_print("Module and class scoped setup results (current test only): "
+                "{}".format(existing_setup_results), DEBUG["scopes"])
+    for res in existing_setup_results:
+        if res.traceback_link:
+            # FIXME raise failed verification over warnings
+            exc_type = res.traceback_link.exc_type
+            msg = "{0.msg} - {0.status}".format(res)
+            tb = res.traceback_link.exc_traceback
+            debug_print("Raising a setup error (inc errors pytest has already "
+                        "associated with a previous test)", DEBUG["scopes"])
+            debug_print("Raising: {} {} {}".format(exc_type, msg, tb),
+                        DEBUG["scopes"])
+            set_saved_raised()
+            raise_(exc_type, msg, tb)
 
 
 def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
