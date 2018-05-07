@@ -32,9 +32,8 @@ def _is_start_or_end(msg):
 
 
 class LogOutputRedirection:
-    # Output redirection class. Redirects sys.stdout and stderr to
-    # write method below.
-    messageIndex = 0
+    # Output redirection class. Redirects sys.stdout and stderr to write
+    # method below.
     json_log = None
     # json log file paths
     root_directory = None
