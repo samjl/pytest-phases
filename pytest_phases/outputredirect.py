@@ -19,7 +19,8 @@ from loglevels import (
     get_step_for_level,
     increment_level,
     is_level_set,
-    set_level
+    set_level,
+    get_parents
 )
 from verify import SessionStatus
 
@@ -32,10 +33,9 @@ def _is_start_or_end(msg):
 
 
 class LogOutputRedirection:
-    # Output redirection class. Redirects sys.stdout and stderr to
-    # write method below.
-    messageIndex = 0
-    json_log = True
+    # Output redirection class. Redirects sys.stdout and stderr to write
+    # method below.
+    json_log = None
     # json log file paths
     root_directory = None
     session_file_path = None  # created at plugin configuration stage
@@ -104,6 +104,7 @@ class LogOutputRedirection:
         log_entry["level"] = level
         log_entry["step"] = step
         log_entry["text"] = msg
+        log_entry["parents"] = get_parents()
 
         self.printStdout.write("{0[level]}-{0[step]} [{0[index]}] {0[text]}\n"
                                .format(log_entry))

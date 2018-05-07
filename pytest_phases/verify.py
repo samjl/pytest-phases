@@ -25,11 +25,8 @@ from loglevels import (
     get_current_level
 )
 
-
-# The traceback depth set here is just an arbitrary figure and could be
-# FIXME user configurable up to the maximum (1000?). In future this could be
-# made
-# user configurable.
+# TODO The traceback depth set here is just an arbitrary figure and could be
+# user configurable up to the maximum (1000?).
 MAX_TRACEBACK_DEPTH = 20
 
 
@@ -112,6 +109,9 @@ class Result(object):
         else:
             self.fixture_name = SessionStatus.exec_func_fix
 
+        # DEBUG ONLY
+        self.active = list(SessionStatus.active_setups)
+
     def formatted_dict(self):
         # TODO add session
         f = OrderedDict()
@@ -120,22 +120,24 @@ class Result(object):
         f["Status"] = self.status
         if DEBUG["summary"]:
             f["Class"] = self.class_name
-            f["Module"] = self.module
+            f["Module"] = self.module.split("/")[-1]
             f["Phase"] = self.phase
             f["Scope"] = self.scope
             f["Source Fixture/Function"] = self.fixture_name
             f["Test Function"] = self.test_function
-            f["ID"] = hex(id(self))[-4:]
-            f["Tb ID"] = hex(id(self.traceback_link))[-4:] if \
-                self.traceback_link else None
-            if self.traceback_link:
-                raised = "Y" if self.traceback_link.raised else "N"
-            else:
-                raised = "-"
-            e = "{}.{}.{}".format(self.type_code,
-                                  "Y" if self.raise_immediately else "N",
-                                  raised)
-            f["Extra"] = e
+            f["Active Setups"] = ",".join(self.active)
+            # f["ID"] = hex(id(self))[-4:]
+            # f["Tb ID"] = hex(id(self.traceback_link))[-4:] if \
+            #     self.traceback_link else None
+            # if self.traceback_link:
+            #     raised = "Y" if self.traceback_link.raised else "N"
+            # else:
+            #     raised = "-"
+            # e = "{}.{}.{}.{}".format(self.type_code,
+            #                          "Y" if self.raise_immediately else "N",
+            #                          "Y" if self.printed else "N",
+            #                          raised)
+            # f["Extra"] = e
         return f
 
 
