@@ -19,7 +19,8 @@ from loglevels import (
     get_step_for_level,
     increment_level,
     is_level_set,
-    set_level
+    set_level,
+    get_parents
 )
 
 
@@ -103,6 +104,7 @@ class LogOutputRedirection:
         log_entry["level"] = level
         log_entry["step"] = step
         log_entry["text"] = msg
+        log_entry["parents"] = get_parents()
 
         self.printStdout.write("{0[level]}-{0[step]} [{0[index]}] {0[text]}\n"
                                .format(log_entry))

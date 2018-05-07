@@ -98,6 +98,10 @@ def get_current_l1_msg():
 
 def get_current_index():
     return MultiLevelLogging.current_index
+
+
+def get_parents():
+    return MultiLevelLogging.parent_indices
 # Moved from namespace
 
 
@@ -140,6 +144,7 @@ class MultiLevelLogging:
     current_step = [0] * (MAX_LEVEL - MIN_LEVEL)
     log_level_set = False
     current_l1_msg = None
+    parent_indices = [None] * (MAX_LEVEL - MIN_LEVEL)
 
 
 def get_next_step(log_level):
@@ -149,6 +154,10 @@ def get_next_step(log_level):
     reset_higher_levels(log_level)
     MultiLevelLogging.current_level = log_level
     MultiLevelLogging.current_index += 1
+    i = index_from_level(log_level)
+    MultiLevelLogging.parent_indices[i] = MultiLevelLogging.current_index
+    for index in range(i+1, len(MultiLevelLogging.parent_indices)):
+        MultiLevelLogging.parent_indices[index] = None
     return step, MultiLevelLogging.current_index
 
 
