@@ -133,10 +133,9 @@ class Result(object):
             #     raised = "Y" if self.traceback_link.raised else "N"
             # else:
             #     raised = "-"
-            # e = "{}.{}.{}.{}".format(self.type_code,
-            #                          "Y" if self.raise_immediately else "N",
-            #                          "Y" if self.printed else "N",
-            #                          raised)
+            # e = "{}.{}.{}".format(self.type_code,
+            #                       "Y" if self.raise_immediately else "N",
+            #                       raised)
             # f["Extra"] = e
         return f
 
