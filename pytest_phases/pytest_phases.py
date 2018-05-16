@@ -36,7 +36,7 @@ from loglevels import (
     LogLevel,
     get_current_index
 )
-from mongo_connector import MongoConnector
+from mongo import MongoConnector
 from outcomes import (
     Outcomes,
     plural,
