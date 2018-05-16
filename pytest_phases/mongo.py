@@ -7,7 +7,7 @@
 
 import datetime
 import pytest
-from loglevels import MIN_LEVEL, MAX_LEVEL
+from loglevels import MIN_LEVEL, MAX_LEVEL, get_parents
 from pymongo import MongoClient
 from verify import SessionStatus
 
@@ -161,6 +161,7 @@ class MongoConnector(object):
             "step": step,
             "message": escape_html(message),
             "parents": MongoConnector.parents[:level - MIN_LEVEL - 1],
+            "parentIndices": get_parents(),
             "numOfChildren": 0,
             "timestamp": datetime.datetime.utcnow(),
             "testResult": self.test_oid
@@ -177,6 +178,11 @@ class MongoConnector(object):
         # Update the list of possible parents to include the inserted message
         # Add inserted _id for the relevant log level
         MongoConnector.parents[level - MIN_LEVEL - 1] = res.inserted_id
+        # Remove possible parent at higher log levels. Required to avoid
+        # incorrect number of children incrementing when log levels increment
+        # by more than 1.
+        for i in range(level-MIN_LEVEL, len(MongoConnector.parents)-1):
+            MongoConnector.parents[i] = "-"
 
     # Insert a saved verification to the relevant testresults entry
     # and insert the log message and link to testlogs and testloglinks
