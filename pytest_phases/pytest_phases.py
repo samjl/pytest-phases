@@ -3,17 +3,26 @@
 # @author Sam Lea (samjl) <samjlea@gmail.com>
 # @created 03/01/18
 # @brief pytest phases plugin - pytest hooks
-
-import ConfigParser
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
 import os
 import pkg_resources
 import pytest
 import sys
 import time
 import traceback
+from builtins import hex, str
+try:
+    # Python 3 - module name changed for PEP8 compliance
+    from configparser import ConfigParser
+except ImportError:
+    # Python 2
+    from ConfigParser import SafeConfigParser as ConfigParser
 from collections import OrderedDict
 from future.utils import raise_
-
+from future import standard_library
+from past.utils import old_div
 from _pytest.fixtures import FixtureDef  # requires pytest version>=3.0.0
 from _pytest.python import (
     Class,
@@ -26,26 +35,25 @@ from _pytest.skipping import (
     show_xpassed
 )
 from _pytest.terminal import WarningReport
-
-from common import (
+from .common import (
     CONFIG,
     DEBUG,
     debug_print
 )
-from loglevels import (
+from .loglevels import (
     LogLevel,
     get_current_index
 )
-from mongo import MongoConnector
-from outcomes import (
+from .mongo import MongoConnector
+from .outcomes import (
     Outcomes,
     plural,
     outcome_conditions,
     phase_specific_result,
     hierarchy
 )
-from outputredirect import LogOutputRedirection  # FIXME replace with get
-from verify import (
+from .outputredirect import LogOutputRedirection  # FIXME replace with get
+from .verify import (
     VerificationException,
     WarningException,
     Verifications,
@@ -57,11 +65,12 @@ from verify import (
     print_saved_results,
     SessionStatus
 )
+standard_library.install_aliases()
 
 
 def pytest_addoption(parser):
     print("Adding options")
-    for name, val in CONFIG.iteritems():
+    for name, val in CONFIG.items():
         parser.addoption("--{}".format(name),
                          # type=val.value_type,
                          action="store",
@@ -70,19 +79,19 @@ def pytest_addoption(parser):
 
 @pytest.hookimpl(trylast=True)  # TODO is this still required?
 def pytest_configure(config):
-    print "phases configuration (loglevels, outputredirect, verify)"
+    print("phases configuration (loglevels, outputredirect, verify)")
     # Load user defined configuration from file
     config_path = pkg_resources.resource_filename('pytest_phases', '')
-    parser = ConfigParser.ConfigParser()
+    parser = ConfigParser()
     parser.read(os.path.join(config_path, "config.cfg"))
 
-    for func in DEBUG.keys():
+    for func in list(DEBUG.keys()):
         try:
             DEBUG[func].enabled = parser.getboolean("debug", func)
         except Exception as e:
-            print e
+            print(e)
 
-    for option in CONFIG.keys():
+    for option in list(CONFIG.keys()):
         try:
             if CONFIG[option].value_type is int:
                 CONFIG[option].value = parser.getint("general", option)
@@ -91,12 +100,11 @@ def pytest_configure(config):
             else:
                 CONFIG[option].value = parser.get("general", option)
         except Exception as e:
-            print e
-
+            print(e)
     parser.read(os.path.join(config_path, "mongo.cfg"))
     mongo_hosts = parser.get("general", "hosts").split(",")
 
-    for name, val in CONFIG.iteritems():
+    for name, val in CONFIG.items():
         cmd_line_val = config.getoption("--{}".format(name))
         if cmd_line_val:
             if CONFIG[name].value_type is bool:
@@ -107,12 +115,11 @@ def pytest_configure(config):
             else:
                 CONFIG[name].value = CONFIG[name].value_type(cmd_line_val)
 
-    print "pytest-phases configuration:"
-    for option in CONFIG.keys():
-        print "{0}: type={1.value_type}, val={1.value}".format(option, CONFIG[
-            option])
-
     SessionStatus.mongo = MongoConnector(mongo_hosts)
+    print("pytest-phases configuration:")
+    for option in list(CONFIG.keys()):
+        print("{0}: type={1.value_type}, val={1.value}".format(option, CONFIG[
+            option]))
 
     if not CONFIG["no-redirect"].value:
         debug_print("Perform output redirection", DEBUG["output-redirect"])
@@ -182,6 +189,8 @@ def pytest_runtest_setup(item):
     SessionStatus.module = None
 
     def get_module_class(item):
+        # debug_print("{} type: {}".format(d.parent, type(d.parent)),
+        #              DEBUG["summary"])
         if isinstance(item.parent, Class):
             debug_print("Class is {}".format(item.parent.name),
                         DEBUG["scopes"])
@@ -196,7 +205,7 @@ def pytest_runtest_setup(item):
         #     SessionStatus.session = item.parent.name
             return
         next_item = item.parent
-        if "parent" in next_item.__dict__.keys():
+        if "parent" in list(next_item.__dict__.keys()):
             if next_item.parent:
                 get_module_class(next_item)
         else:
@@ -323,7 +332,7 @@ def pytest_fixture_post_finalizer(fixturedef, request):
     try:
         SessionStatus.active_setups.remove(setup_args)
     except ValueError as e:
-        print e
+        print(e)
 
     debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope "
                 "COMPLETE".format(fixturedef), DEBUG["scopes"])
@@ -447,7 +456,7 @@ def _raise_existing_setup_error():
     existing_setup_results = []
     for scope in ("module", "class"):
         if fixture_results["setup"][scope]:
-            for res in fixture_results["setup"][scope].values()[0][:-1]:
+            for res in list(fixture_results["setup"][scope].values())[0][:-1]:
                 existing_setup_results.append(res)
     debug_print("Module and class scoped setup results (current test only): "
                 "{}".format(existing_setup_results), DEBUG["scopes"])
@@ -501,7 +510,7 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
         trace_complete.insert(0, "{0[0]}:{0[1]}:{0[2]}".format(tb_level))
 
     # Divide by 3 as each failure has 3 lines (list entries)
-    debug_print("# of tracebacks: {}".format(len(trace_complete) / 3),
+    debug_print("# of tracebacks: {}".format(old_div(len(trace_complete), 3)),
                 DEBUG["not-plugin"])
     debug_print("length of locals: {}".format(len(locals_all_frames)),
                 DEBUG["not-plugin"])
@@ -515,7 +524,7 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
         # Most recent stack entry first
         # Extract the setup/teardown fixture information if possible
         # keep track of the fixture name and scope
-        for item in stack_locals.values():
+        for item in list(stack_locals.values()):
             if isinstance(item, FixtureDef):
                 fixture_name = item.argname
                 fixture_scope = item.scope
@@ -552,8 +561,8 @@ def _raise_first_saved_exc_type(type_to_raise):
         if exc_type == type_to_raise and not saved_traceback.raised:
             msg = "{0.msg} - {0.status}".format(saved_traceback.result_link)
             tb = saved_traceback.exc_traceback
-            print "Re-raising first saved {}: {} {} {}".\
-                format(type_to_raise, exc_type, msg, tb)
+            print("Re-raising first saved {}: {} {} {}".\
+                format(type_to_raise, exc_type, msg, tb))
             set_saved_raised()
             raise_(exc_type, msg, tb)  # for python 2 and 3 compatibility
 
@@ -619,7 +628,7 @@ def pytest_terminal_summary(terminalreporter):
                                         saved_tb.result_link.msg))
 
     debug_print("Test function fixture dependencies:", DEBUG["summary"])
-    for test_name, setup_fixtures in SessionStatus.test_fixtures.iteritems():
+    for test_name, setup_fixtures in SessionStatus.test_fixtures.items():
         debug_print("{} depends on setup fixtures: {}"
                     .format(test_name, ", ".join(setup_fixtures)),
                     DEBUG["summary"])
@@ -639,7 +648,7 @@ def pytest_terminal_summary(terminalreporter):
             result_by_fixture[key][saved_result.type_code] = 1
         else:
             result_by_fixture[key][saved_result.type_code] += 1
-    for key, val in result_by_fixture.iteritems():
+    for key, val in result_by_fixture.items():
         debug_print("{}: {}".format(key, val), DEBUG["summary"])
     # DEBUG END
 
@@ -676,8 +685,8 @@ def pytest_terminal_summary(terminalreporter):
                                         test_func, phase)
             fixture_results[phase]["function"] = _filter_fixture(f_res)
         # Call (test function) results
-        call = filter(lambda x: x.test_function == test_func and
-                      x.phase == "call", Verifications.saved_results)
+        call = [x for x in Verifications.saved_results if x.test_function == test_func and
+                      x.phase == "call"]
         call_res_summary = _results_summary(call)
         fixture_results["call"] = {"results": call,
                                    "overall": {"saved": call_res_summary}}
@@ -689,13 +698,13 @@ def pytest_terminal_summary(terminalreporter):
     # Session based reports (CollectReport, (pytest-)WarningReport) are
     # collated for printing later.
     pytest_reports = terminalreporter.stats
-    reports_total = sum(len(v) for k, v in pytest_reports.items())
+    reports_total = sum(len(v) for k, v in list(pytest_reports.items()))
     debug_print("{} pytest reports".format(reports_total), DEBUG["summary"])
     total_session_duration = 0
     collect_error_reports = []
     pytest_warning_reports = []
     summary_results = {}
-    for report_type, reports in pytest_reports.iteritems():
+    for report_type, reports in pytest_reports.items():
         for report in reports:
             debug_print("Report type: {}, report: {}".format(
                 report_type, report), DEBUG["summary"])
@@ -731,13 +740,12 @@ def pytest_terminal_summary(terminalreporter):
 
     # For each test: determine the result for each phase and the overall test
     # result.
-    for test_function, test_result in test_results.iteritems():
+    for test_function, test_result in test_results.items():
         for phase in ("setup", "teardown"):
             test_result[phase]["overall"]["saved"] = {}
             for scope in ("module", "class", "function"):
-                for fixture_name, fixture_result in test_result[phase][scope]\
-                        .iteritems():
-                    for k, v in fixture_result[-1].iteritems():
+                for fixture_name, fixture_result in test_result[phase][scope].items():
+                    for k, v in fixture_result[-1].items():
                         if k in test_result[phase]["overall"]["saved"]:
                             test_result[phase]["overall"]["saved"][k] += v
                         else:
@@ -761,39 +769,37 @@ def pytest_terminal_summary(terminalreporter):
             summary_results[test_result["overall"]] += 1
 
     # TODO format this summary table nicely
-    for test_function, fixture_results in test_results.iteritems():
+    for test_function, fixture_results in test_results.items():
         debug_print("*********************************************************"
                     "********************************************************",
                     DEBUG["summary"])
         for phase in ("setup", "call", "teardown"):
             if phase == "setup":
                 for scope in ("module", "class", "function"):
-                    for fixture_name, results in fixture_results[phase][scope]\
-                            .iteritems():
+                    for fixture_name, results in fixture_results[phase][scope].items():
                         results_id = [hex(id(x))[-4:] for x in results[0:-1]]
-                        print "{0:<20}{1:<10}{2:<10}{3:<25}{4:<40}{5}".format(
+                        print("{0:<20}{1:<10}{2:<10}{3:<25}{4:<40}{5}".format(
                             test_function, phase, scope, fixture_name,
-                            results[-1], results_id)
+                            results[-1], results_id))
             elif phase == "teardown":
                 for scope in ("function", "class", "module"):
-                    for fixture_name, results in fixture_results[phase][scope]\
-                            .iteritems():
+                    for fixture_name, results in fixture_results[phase][scope].items():
                         results_id = [hex(id(x))[-4:] for x in results[0:-1]]
-                        print "{0:<20}{1:<10}{2:<10}{3:<25}{4:<40}{5}".format(
+                        print("{0:<20}{1:<10}{2:<10}{3:<25}{4:<40}{5}".format(
                             test_function, phase, scope, fixture_name,
-                            results[-1], results_id)
+                            results[-1], results_id))
             elif phase == "call":
                 results_id = [hex(id(x))[-4:] for x in fixture_results[phase][
                     "results"]]
-                print "{0:<20}{1:<10}{2:<10}{3:<25}{4:<40}{5}".format(
+                print("{0:<20}{1:<10}{2:<10}{3:<25}{4:<40}{5}".format(
                         test_function, phase, "overall", "saved results", "",
-                        results_id)
+                        results_id))
             if "overall" in fixture_results[phase]:
-                print "{0:<20}{1:<10}{2:<10}{3:<25}{4}".format(
+                print("{0:<20}{1:<10}{2:<10}{3:<25}{4}".format(
                         test_function, phase, "overall", "-",
-                        fixture_results[phase]["overall"])
-        print "{0:<20}{1:<10}{2:<10}{3:<25}{4}".format(
-            test_function, "overall", "-", "-", fixture_results["overall"])
+                        fixture_results[phase]["overall"]))
+        print("{0:<20}{1:<10}{2:<10}{3:<25}{4}".format(
+            test_function, "overall", "-", "-", fixture_results["overall"]))
 
     debug_print("*********************************************************"
                 "********************************************************",
@@ -902,9 +908,9 @@ def _get_test_summary_result(setup_result, call_result, teardown_result):
 
 def _filter_scope_phase(result_att, scope, scope_name, phase):
     s_r = Verifications.saved_results
-    scope_results = filter(lambda x: getattr(x, result_att) == scope_name
-                           and x.scope == scope, s_r)
-    return filter(lambda y: y.phase == phase, scope_results)
+    scope_results = [x for x in s_r if getattr(x, result_att) == scope_name
+                           and x.scope == scope]
+    return [y for y in scope_results if y.phase == phase]
 
 
 def _results_summary(results):
@@ -924,7 +930,7 @@ def _filter_fixture(results):
             results_by_fixture[res.fixture_name] = [res]
         else:
             results_by_fixture[res.fixture_name].append(res)
-    for fix_name, fix_results in results_by_fixture.iteritems():
+    for fix_name, fix_results in results_by_fixture.items():
         f_res_summary = _results_summary(fix_results)
         results_by_fixture[fix_name].append(f_res_summary)
     return results_by_fixture

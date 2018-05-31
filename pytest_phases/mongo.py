@@ -4,12 +4,17 @@
 # @created 03/01/18
 # @brief pytest phases plugin: mongo connector insert to and update log
 # messages in mongoDB
-
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
+from __future__ import division
 import datetime
-import pytest
-from loglevels import MIN_LEVEL, MAX_LEVEL, get_parents
+from future import standard_library
+from builtins import object, range
 from pymongo import MongoClient
-from verify import SessionStatus
+from .loglevels import MIN_LEVEL, MAX_LEVEL, get_parents
+from .verify import SessionStatus
+standard_library.install_aliases()
 
 # don't bother with a timestamp - use the ObjectId
 # test run (jenkins) or more generic session ID (could be an incremental
@@ -47,7 +52,7 @@ class MongoConnector(object):
     def _get_session_id(self):
         res = self.db.sessioncounter.update_one({"_id": 0}, {"$inc": {
             "sessionId": 1}}, upsert=True)
-        print res
+        print(res)
         return self.db.sessioncounter.find_one({"_id": 0})["sessionId"]
 
     def init_session(self):
@@ -135,7 +140,7 @@ class MongoConnector(object):
         try:
             res = self.db.testresults.update_one(query, update)
         except Exception as e:
-            print e
+            print(e)
             raise
         print(res)
 
