@@ -776,30 +776,34 @@ def pytest_terminal_summary(terminalreporter):
         for phase in ("setup", "call", "teardown"):
             if phase == "setup":
                 for scope in ("module", "class", "function"):
-                    for fixture_name, results in fixture_results[phase][scope].items():
+                    for fixture_name, results in fixture_results[phase][scope]\
+                            .items():
                         results_id = [hex(id(x))[-4:] for x in results[0:-1]]
-                        print("{0:<20}{1:<10}{2:<10}{3:<25}{4:<40}{5}".format(
-                            test_function, phase, scope, fixture_name,
-                            results[-1], results_id))
+                        print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s:<40}"
+                              "{5!s}".format(test_function, phase, scope,
+                                             fixture_name, results[-1],
+                                             results_id))
             elif phase == "teardown":
                 for scope in ("function", "class", "module"):
-                    for fixture_name, results in fixture_results[phase][scope].items():
+                    for fixture_name, results in fixture_results[phase][scope]\
+                            .items():
                         results_id = [hex(id(x))[-4:] for x in results[0:-1]]
-                        print("{0:<20}{1:<10}{2:<10}{3:<25}{4:<40}{5}".format(
-                            test_function, phase, scope, fixture_name,
-                            results[-1], results_id))
+                        print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s:<40}"
+                              "{5!s}".format(test_function, phase, scope,
+                                             fixture_name, results[-1],
+                                             results_id))
             elif phase == "call":
                 results_id = [hex(id(x))[-4:] for x in fixture_results[phase][
                     "results"]]
-                print("{0:<20}{1:<10}{2:<10}{3:<25}{4:<40}{5}".format(
-                        test_function, phase, "overall", "saved results", "",
-                        results_id))
+                print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s:<40}{5!s}"
+                      .format(test_function, phase, "overall", "saved results",
+                              "", results_id))
             if "overall" in fixture_results[phase]:
-                print("{0:<20}{1:<10}{2:<10}{3:<25}{4}".format(
-                        test_function, phase, "overall", "-",
-                        fixture_results[phase]["overall"]))
-        print("{0:<20}{1:<10}{2:<10}{3:<25}{4}".format(
-            test_function, "overall", "-", "-", fixture_results["overall"]))
+                print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s}".format(
+                      test_function, phase, "overall", "-",
+                      fixture_results[phase]["overall"]))
+        print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s}".format(test_function,
+              "overall", "-", "-", fixture_results["overall"]))
 
     debug_print("*********************************************************"
                 "********************************************************",
