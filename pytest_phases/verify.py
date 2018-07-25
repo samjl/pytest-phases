@@ -1,3 +1,6 @@
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
 ##
 # @file verify.py
 # @author Sam Lea (samjl) <samjlea@gmail.com>
@@ -6,6 +9,10 @@
 # Verification functionality and saving of test session results,
 # session state tracking (current phase, module, class, fixture, test function)
 
+from builtins import str
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import inspect
 import pytest
 import re
@@ -15,12 +22,12 @@ from future.utils import raise_
 
 from _pytest.fixtures import FixtureDef  # requires pytest version>=3.0.0
 
-from common import (
+from .common import (
     CONFIG,
     DEBUG,
     debug_print
 )
-from loglevels import (
+from .loglevels import (
     get_current_l1_msg,
     get_current_level
 )
@@ -53,12 +60,8 @@ class SessionStatus(object):
     prev_teardown = None  # Track the most recently completed teardown
     # fixture so it can be assigned to any regular assertions raised
 
-    # MongoDB
-    mongo = None
-    test_object_id = None  # Same as mongo.test_oid
 
-
-class Verifications:
+class Verifications(object):
     # Module level storage of verification results and tracebacks for
     # failures and warnings.
     saved_tracebacks = []
@@ -133,9 +136,10 @@ class Result(object):
             #     raised = "Y" if self.traceback_link.raised else "N"
             # else:
             #     raised = "-"
-            # e = "{}.{}.{}".format(self.type_code,
-            #                       "Y" if self.raise_immediately else "N",
-            #                       raised)
+            # e = "{}.{}.{}.{}".format(self.type_code,
+            #                          "Y" if self.raise_immediately else "N",
+            #                          "Y" if self.printed else "N",
+            #                          raised)
             # f["Extra"] = e
         return f
 
@@ -242,8 +246,8 @@ def _get_complete_traceback(stack, start_depth, stop_at_test,
             tb_new.extend(source_call)
             tb[0:0] = tb_new
         else:
-            # Failed to retrieve calling traceback
-            break  # FIXME should this be continue?
+            # FIXME
+            break
     return tb
 
 
@@ -268,8 +272,8 @@ def _get_calling_func(stack, depth, stop_at_test, full_method_trace):
                 # args = inspect.getargvalues(stack[depth][0]).locals.items()
                 # calling_frame_locals = (", ".join("{}: {}".format(k, v)
                 #                         for k, v in args))
-                calling_frame_locals = dict(inspect.getargvalues(stack[depth]
-                                            [0]).locals.items())
+                calling_frame_locals = dict(list(inspect.getargvalues(stack[depth]
+                                            [0]).locals.items()))
             except Exception as e:
                 pytest.log.step("Failed to retrieve local variables for {}".
                                 format(module_line_parent), log_level=5)
@@ -303,10 +307,18 @@ def trace_end_detected(func_call_line):
 
 def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
                  full_method_trace, raise_immediately):
+    # TODO update this
     """Save a result of verify/_verify.
     Items to save:
-    Result object for all results, plus FailureTraceback object for results
-    other than pass.
+    Saved result - Step,
+                   Message,
+                   Status,
+                   Extra Info (instance of ResultInfo)
+    Traceback - type,
+                tb,
+                complete,
+                raised,
+                res_index
     """
     stack = inspect.stack()
     depth = 3
@@ -316,25 +328,20 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
     fixture_scope = None
     if SessionStatus.phase != "call":
         for d in range(depth, depth+6):  # TODO use max tb depth?
-            # For setup and teardown phases (in fixture), parse locals in
-            # stack to extract the fixture name and scope
-            # Locals for current frame
-            stack_locals = OrderedDict(inspect.getargvalues(stack[d][0]).
-                                       locals.items())
-            for item in stack_locals.values():
+            # frame = stack[d][0]
+            stack_locals = OrderedDict(list(inspect.getargvalues(stack[d][0]).
+                                       locals.items()))
+            for item in list(stack_locals.values()):
+                # print item
                 if isinstance(item, FixtureDef):
                     fixture_name = item.argname
                     fixture_scope = item.scope
                     debug_print("scope for {} is {} [{}]".format(fixture_name,
-                                                                 fixture_scope,
-                                                                 d),
-                                DEBUG["verify"])
+                                                                 fixture_scope, d), DEBUG["verify"])
             if fixture_scope:
                 break
 
-    # Get the calling function and local vars for all results.
-    # Don't really need to do this for all results, passes? so if
-    # performance suffers this could be removed.
+    # TODO check performance of this - not sure if we want to do it for all
     source_function, source_locals, source_call = \
         _get_calling_func(stack, depth, True, full_method_trace)
     tb_depth_1 = [source_function]
@@ -426,7 +433,7 @@ def print_saved_results(column_key_order="Step", extra_info=False):
                         column_key_order)
         for result in to_print:
             _print_result(result, key_val_lengths, column_key_order)
-        print "Extra fields: raise_immediately.raised"
+        print("Extra fields: raise_immediately.printed.raised")
 
 
 def _print_result(result, key_val_lengths, column_key_order):
@@ -436,7 +443,7 @@ def _print_result(result, key_val_lengths, column_key_order):
         # Print values in the order defined by column_key_order.
         length = key_val_lengths[key]
         line += '| {0:^{1}} '.format(str(result[key]), length)
-    for key in result.keys():
+    for key in list(result.keys()):
         key = key.strip()
         if key not in column_key_order:
             length = key_val_lengths[key]
@@ -449,7 +456,7 @@ def _print_result(result, key_val_lengths, column_key_order):
     # line += "| {}".format(i)
     # pytest.log.detail_step(line)
     # DEBUG
-    print line
+    print(line)
     # print result["Extra Info"].source_function
     # for line in result["Extra Info"].source_call:
     #     print line
@@ -460,7 +467,7 @@ def _get_val_lengths(saved_results, key_val_lengths):
     # Update the maximum field length dictionary based on the length of
     # the values.
     for result in saved_results:
-        for key, value in result.items():
+        for key, value in list(result.items()):
             key = key.strip()
             if key not in key_val_lengths:
                 key_val_lengths[key] = 0
@@ -479,7 +486,7 @@ def _get_key_lengths(key_val_lengths):
     # Dictionary to store the keys (spilt if required) that form the
     # table headings.
     headings = {}
-    for key, val in key_val_lengths.iteritems():
+    for key, val in key_val_lengths.items():
         debug_print("key: {}, key length: {}, length of field from values "
                      "{}".format(key, len(key), val), DEBUG["print-saved"])
         if len(key) > val:
@@ -491,7 +498,7 @@ def _get_key_lengths(key_val_lengths):
                 space_indices.extend(slash_indices)
                 debug_print("key can be split @ {}".format(space_indices),
                             DEBUG["print-saved"])
-                key_centre_index = int(len(key)/2)
+                key_centre_index = int(old_div(len(key),2))
                 split_index = min(space_indices, key=lambda x: abs(
                     x - key_centre_index))
                 debug_print('The closest index to the middle ({}) is {}'
@@ -535,14 +542,14 @@ def _print_headings(first_result, headings, key_val_lengths,
     lines = ["", "", ""]
     line_length = _get_line_length(key_val_lengths)
     # pytest.log.detail_step("_" * line_length)
-    print "_" * line_length  # DEBUG
+    print("_" * line_length)  # DEBUG
     for key in column_key_order:
         field_length = key_val_lengths[key]
         for line_index in (0, 1):
             lines[line_index] += '| ' + '{0:^{width}}'.format(
                 headings[key][line_index], width=field_length) + ' '
         lines[2] += '|-' + '-'*field_length + '-'
-    for key, value in first_result.items():
+    for key, value in list(first_result.items()):
         key = key.strip()
         if not (((type(column_key_order) is list) and
                  (key in column_key_order)) or
@@ -556,4 +563,4 @@ def _print_headings(first_result, headings, key_val_lengths,
     for line in lines:
         line += "|"
         # pytest.log.detail_step(line)
-        print line
+        print(line)

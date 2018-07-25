@@ -5,6 +5,7 @@
 # @brief pytest phases plugin:outcomes -
 
 
+from builtins import object
 class Outcomes(object):
     setup_skip = "setup skipped"
     skip = "skipped"
@@ -87,9 +88,9 @@ outcome_conditions = (
     (lambda o: o["pytest"]["type"] == "skipped", Outcomes.skip),
     (lambda o: o["pytest"]["type"] == "xfailed", Outcomes.expected_fail),
     (lambda o: o["pytest"]["type"] == "xpassed", Outcomes.unexpected_pass),
-    (lambda o: True in [x in o["saved"].keys() for x in ("A", "O", "F")],
+    (lambda o: True in [x in list(o["saved"].keys()) for x in ("A", "O", "F")],
      Outcomes.fail),
-    (lambda o: True in ["W" in o["saved"].keys()], Outcomes.warning),
+    (lambda o: True in ["W" in list(o["saved"].keys())], Outcomes.warning),
     # Otherwise (no saved results) pass if report outcome is passed
     # could also check report type
     # (lambda o: o["pytest"]["pytest-outcome"] == "passed", "passed")

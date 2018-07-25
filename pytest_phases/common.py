@@ -1,22 +1,24 @@
+from __future__ import print_function
 ##
 # @file common.py
 # @author Sam Lea (samjl) <samjlea@gmail.com>
 # @created 03/01/18
 
 
-class DebugFunctionality:
+from builtins import object
+class DebugFunctionality(object):
     def __init__(self, name, enabled):
         self.name = name
         self.enabled = enabled
 
 
-class ConfigOption:
+class ConfigOption(object):
     def __init__(self, value_type, value_default, helptext=""):
         self.value_type = value_type
         self.value = value_default
         if self.value_type is bool:
-            help_for_bool = filter(None, [helptext, "Enable: 1/yes/true/on",
-                                   "Disable: 0/no/false/off"])
+            help_for_bool = [_f for _f in [helptext, "Enable: 1/yes/true/on",
+                                   "Disable: 0/no/false/off"] if _f]
             self.help = ". ".join(help_for_bool)
         else:
             self.help = helptext
@@ -28,8 +30,7 @@ DEBUG = {"print-saved": DebugFunctionality("print saved", False),
          "phases": DebugFunctionality("phases", False),
          "scopes": DebugFunctionality("scopes", False),
          "summary": DebugFunctionality("summary", False),
-         "output-redirect": DebugFunctionality("redirect", True),
-         "mongo": DebugFunctionality("mongo", True)}
+         "output-redirect": DebugFunctionality("redirect", True)}
 
 CONFIG = {"include-verify-local-vars":
           ConfigOption(bool, True, "Include local variables in tracebacks "
@@ -60,7 +61,7 @@ CONFIG = {"include-verify-local-vars":
           "root-dir":
           ConfigOption(str, None, "Full path to local base directory to save "
                                   "test logs to"),
-          "no-json":
+          "no-json":  # TODO Required now? db enable/disable
           ConfigOption(bool, False, "Don't save log to JSON file (std out "
                                     "only)")
           }
@@ -69,4 +70,4 @@ CONFIG = {"include-verify-local-vars":
 def debug_print(msg, flag):
     # Print a debug message if the corresponding flag is set.
     if flag.enabled:
-        print "DEBUG({}): {}".format(flag.name, msg)
+        print("DEBUG({}): {}".format(flag.name, msg))
