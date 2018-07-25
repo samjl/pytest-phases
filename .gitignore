@@ -6,3 +6,5 @@ build/
 *.pyc
 .tox/
 requirements.txt
+.directory
+.pytest_cache/
