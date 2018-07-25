@@ -99,7 +99,7 @@ class LogOutputRedirection(object):
         msg = msg.rstrip()
 
         if not isinstance(msg, str):
-            msg = str(msg, errors='replace')
+            msg = str(msg, encoding="utf8", errors='replace')
 
         log_entry = OrderedDict()
         log_entry["index"] = index
