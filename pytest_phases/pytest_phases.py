@@ -1,32 +1,28 @@
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
 ##
 # @file pytest_phases.py
 # @author Sam Lea (samjl) <samjlea@gmail.com>
 # @created 03/01/18
 # @brief pytest phases plugin - pytest hooks
-
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import hex
-from past.utils import old_div
-try:
-    # Python 3 - module name changed for PEP8 compliance
-    from configparser import ConfigParser
-except ImportError:
-    # Python 2
-    from ConfigParser import SafeConfigParser as ConfigParser
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
 import os
 import pkg_resources
 import pytest
 import sys
 import time
 import traceback
+from builtins import hex, str
+try:
+    # Python 3 - module name changed for PEP8 compliance
+    from configparser import ConfigParser
+except ImportError:
+    # Python 2
+    from ConfigParser import SafeConfigParser as ConfigParser
 from collections import OrderedDict
 from future.utils import raise_
-
+from future import standard_library
+from past.utils import old_div
 from _pytest.fixtures import FixtureDef  # requires pytest version>=3.0.0
 from _pytest.python import (
     Class,
@@ -39,7 +35,6 @@ from _pytest.skipping import (
     show_xpassed
 )
 from _pytest.terminal import WarningReport
-
 from .common import (
     CONFIG,
     DEBUG,
@@ -66,9 +61,7 @@ from .verify import (
     print_saved_results,
     SessionStatus
 )
-
-# TODO let you specify the exception type to save in verify function - e.g.
-# raise an SNMPError
+standard_library.install_aliases()
 
 
 def pytest_addoption(parser):
@@ -180,8 +173,6 @@ def pytest_runtest_setup(item):
     SessionStatus.module = None
 
     def get_module_class(item):
-        # debug_print("{} type: {}".format(d.parent, type(d.parent)),
-        #              DEBUG["summary"])
         if isinstance(item.parent, Class):
             debug_print("Class is {}".format(item.parent.name),
                         DEBUG["scopes"])
@@ -740,30 +731,34 @@ def pytest_terminal_summary(terminalreporter):
         for phase in ("setup", "call", "teardown"):
             if phase == "setup":
                 for scope in ("module", "class", "function"):
-                    for fixture_name, results in fixture_results[phase][scope].items():
+                    for fixture_name, results in fixture_results[phase][scope]\
+                            .items():
                         results_id = [hex(id(x))[-4:] for x in results[0:-1]]
-                        print("{0:<20}{1:<10}{2:<10}{3:<25}{4:<40}{5}".format(
-                            test_function, phase, scope, fixture_name,
-                            results[-1], results_id))
+                        print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s:<40}"
+                              "{5!s}".format(test_function, phase, scope,
+                                             fixture_name, results[-1],
+                                             results_id))
             elif phase == "teardown":
                 for scope in ("function", "class", "module"):
-                    for fixture_name, results in fixture_results[phase][scope].items():
+                    for fixture_name, results in fixture_results[phase][scope]\
+                            .items():
                         results_id = [hex(id(x))[-4:] for x in results[0:-1]]
-                        print("{0:<20}{1:<10}{2:<10}{3:<25}{4:<40}{5}".format(
-                            test_function, phase, scope, fixture_name,
-                            results[-1], results_id))
+                        print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s:<40}"
+                              "{5!s}".format(test_function, phase, scope,
+                                             fixture_name, results[-1],
+                                             results_id))
             elif phase == "call":
                 results_id = [hex(id(x))[-4:] for x in fixture_results[phase][
                     "results"]]
-                print("{0:<20}{1:<10}{2:<10}{3:<25}{4:<40}{5}".format(
-                        test_function, phase, "overall", "saved results", "",
-                        results_id))
+                print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s:<40}{5!s}"
+                      .format(test_function, phase, "overall", "saved results",
+                              "", results_id))
             if "overall" in fixture_results[phase]:
-                print("{0:<20}{1:<10}{2:<10}{3:<25}{4}".format(
-                        test_function, phase, "overall", "-",
-                        fixture_results[phase]["overall"]))
-        print("{0:<20}{1:<10}{2:<10}{3:<25}{4}".format(
-            test_function, "overall", "-", "-", fixture_results["overall"]))
+                print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s}".format(
+                      test_function, phase, "overall", "-",
+                      fixture_results[phase]["overall"]))
+        print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s}".format(test_function,
+              "overall", "-", "-", fixture_results["overall"]))
 
     debug_print("*********************************************************"
                 "********************************************************",

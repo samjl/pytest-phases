@@ -3,9 +3,9 @@
 # @author Sam Lea (samjl) <samjlea@gmail.com>
 # @created 03/01/18
 # @brief pytest phases plugin:outcomes -
-
-
 from builtins import object
+
+
 class Outcomes(object):
     setup_skip = "setup skipped"
     skip = "skipped"
@@ -16,7 +16,6 @@ class Outcomes(object):
     warning = "warned"
     setup_warning = "setup warned"
     teardown_warning = "teardown warned"
-    # TODO do these also need to be phase specific?
     expected_fail = "expected failure"
     unexpected_pass = "unexpectedly passed"
     passed = "passed"

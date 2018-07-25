@@ -1,5 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
 ##
 # @file loglevels.py
 # @author Sam Lea (samjl) <samjlea@gmail.com>
@@ -7,8 +5,9 @@ from __future__ import absolute_import
 # @brief pytest phases plugin:loglevels - functions to assign and print a log
 # level to test log messages. Log messages (including standard print function)
 # are assigned a log level and associated step.
-from builtins import range
-from builtins import object
+from __future__ import print_function
+from __future__ import absolute_import
+from builtins import object, range
 from .common import CONFIG
 
 MIN_LEVEL = 0

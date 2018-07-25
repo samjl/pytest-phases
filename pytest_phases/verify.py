@@ -1,6 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
 ##
 # @file verify.py
 # @author Sam Lea (samjl) <samjlea@gmail.com>
@@ -8,20 +5,18 @@ from __future__ import division
 # @brief pytest phases plugin:verify
 # Verification functionality and saving of test session results,
 # session state tracking (current phase, module, class, fixture, test function)
-
-from builtins import str
-from builtins import range
-from past.utils import old_div
-from builtins import object
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
 import inspect
 import pytest
 import re
 import sys
+from _pytest.fixtures import FixtureDef  # requires pytest version>=3.0.0
+from builtins import object, range, str
 from collections import OrderedDict
 from future.utils import raise_
-
-from _pytest.fixtures import FixtureDef  # requires pytest version>=3.0.0
-
+from past.utils import old_div
 from .common import (
     CONFIG,
     DEBUG,

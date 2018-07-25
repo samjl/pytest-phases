@@ -1,11 +1,12 @@
-from __future__ import print_function
 ##
 # @file common.py
 # @author Sam Lea (samjl) <samjlea@gmail.com>
 # @created 03/01/18
 
-
+from __future__ import print_function
 from builtins import object
+
+
 class DebugFunctionality(object):
     def __init__(self, name, enabled):
         self.name = name
@@ -61,7 +62,7 @@ CONFIG = {"include-verify-local-vars":
           "root-dir":
           ConfigOption(str, None, "Full path to local base directory to save "
                                   "test logs to"),
-          "no-json":  # TODO Required now? db enable/disable
+          "no-json":
           ConfigOption(bool, False, "Don't save log to JSON file (std out "
                                     "only)")
           }
