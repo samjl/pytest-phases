@@ -63,6 +63,20 @@ class Verifications(object):
         self.saved_tracebacks = []
         self.saved_results = []
 
+    def fixture_setup_results(self, fixture_name, test_name):
+        results = self._fixture_results("setup", fixture_name, test_name)
+        # TODO get results summary
+        # TODO get fixture setup result
+
+    def fixture_teardown_results(self, fixture_name, test_name):
+        results = self._fixture_results("teardown", fixture_name, test_name)
+        # TODO get results summary
+        # TODO get fixture setup result
+
+    def _fixture_results(self, phase, fixture_name, test_name):
+        return self.filter_results(phase=phase, fixture_name=fixture_name,
+                                   test_function=test_name)
+
     def phase_summary_and_outcome(self, phase, result_category):
         results = self.phase_results(phase)
         summary = self._results_summary(results)

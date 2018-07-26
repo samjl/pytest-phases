@@ -306,6 +306,8 @@ def pytest_fixture_setup(fixturedef, request):
 
     debug_print("Fixture SETUP for {0.argname} with {0.scope} scope COMPLETE"
                 .format(fixturedef), DEBUG["scopes"])
+    SessionStatus.verifications.fixture_setup_results(fixturedef.argname,
+                                                      request._pyfuncitem.name)
 
 
 # Introduced in pytest 3.0.0
@@ -315,8 +317,10 @@ def pytest_fixture_post_finalizer(fixturedef, request):
     debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope"
                 .format(fixturedef), DEBUG["scopes"])
 
-    yield
+    res = yield
     # DEBUG seem to get multiple module based executions of this code ???
+    debug_print("Fixture post finalizer (after yield): {}".format(res),
+                DEBUG["scopes"], prettify=res.__dict__)
 
     if hasattr(request, "param"):
         setup_params = "[{}]".format(request.param)
@@ -332,6 +336,8 @@ def pytest_fixture_post_finalizer(fixturedef, request):
 
     debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope "
                 "COMPLETE".format(fixturedef), DEBUG["scopes"])
+    SessionStatus.verifications.fixture_teardown_results(fixturedef.argname,
+                                                         request._pyfuncitem.name)
 
 
 @pytest.hookimpl(hookwrapper=True)
