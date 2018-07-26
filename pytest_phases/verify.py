@@ -19,9 +19,9 @@ from future.utils import raise_
 from past.utils import old_div
 from .common import (
     CONFIG,
-    DEBUG,
-    debug_print
+    DEBUG
 )
+from .common import debug_print as debug_print_common
 from .loglevels import (
     get_current_l1_msg,
     get_current_level
@@ -30,6 +30,10 @@ from .loglevels import (
 # TODO The traceback depth set here is just an arbitrary figure and could be
 # user configurable up to the maximum (1000?).
 MAX_TRACEBACK_DEPTH = 20
+
+
+def debug_print(msg, prettify=None):
+    debug_print_common(msg, DEBUG["verify"], prettify)
 
 
 class WarningException(Exception):
@@ -166,12 +170,11 @@ def perform_verification(fail_condition, fail_message, raise_immediately,
     if warning:
         raise_immediately = False
 
-    debug_print("Performing verification", DEBUG["verify"])
-    debug_print("Locals: {}".format(inspect.getargvalues(inspect.stack()[1][0]).locals),
-                DEBUG["verify"])
+    debug_print("Performing verification")
+    debug_print("Locals: {}".format(inspect.getargvalues(inspect.stack()[1][0]).locals))
 
     def warning_init():
-        debug_print("WARNING (fail_condition)", DEBUG["verify"])
+        debug_print("WARNING (fail_condition)")
         try:
             raise WarningException()
         except WarningException:
@@ -227,8 +230,7 @@ def _get_complete_traceback(stack, start_depth, stop_at_test,
     # Print call lines or source code back to beginning of each calling
     # function (fullMethodTrace).
     if len(stack) > MAX_TRACEBACK_DEPTH:
-        debug_print("Length of stack = {}".format(len(stack)),
-                    DEBUG["verify"])
+        debug_print("Length of stack = {}".format(len(stack)))
         max_traceback_depth = MAX_TRACEBACK_DEPTH
     else:
         max_traceback_depth = len(stack)
@@ -254,7 +256,7 @@ def _get_calling_func(stack, depth, stop_at_test, full_method_trace):
     try:
         func_source = inspect.getsourcelines(stack[depth][0])
     except Exception as e:
-        debug_print("{}".format(str(e)), DEBUG["verify"])
+        debug_print("{}".format(str(e)))
         return
     else:
         func_line_number = func_source[1]
@@ -275,7 +277,7 @@ def _get_calling_func(stack, depth, stop_at_test, full_method_trace):
             except Exception as e:
                 pytest.log.step("Failed to retrieve local variables for {}".
                                 format(module_line_parent), log_level=5)
-                debug_print("{}".format(str(e)), DEBUG["verify"])
+                debug_print("{}".format(str(e)))
         if full_method_trace:
             for lineNumber in range(0, call_line_number - func_line_number):
                 source_line = re.sub('[\r\n]', '', func_source[0][lineNumber])
@@ -313,7 +315,7 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
     stack = inspect.stack()
     depth = 3
 
-    debug_print("Saving a result of verify function", DEBUG["verify"])
+    debug_print("Saving a result of verify function")
     fixture_name = None
     fixture_scope = None
     if SessionStatus.phase != "call":
@@ -329,8 +331,7 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
                     fixture_scope = item.scope
                     debug_print("scope for {} is {} [{}]".format(fixture_name,
                                                                  fixture_scope,
-                                                                 d),
-                                DEBUG["verify"])
+                                                                 d))
             if fixture_scope:
                 break
 
@@ -412,8 +413,8 @@ def print_saved_results(column_key_order="Step", extra_info=False):
     """
     if not isinstance(column_key_order, (tuple, list)):
         column_key_order = [column_key_order]
-    debug_print("Column order: {}".format(column_key_order),
-                DEBUG["print-saved"])
+    debug_print_common("Column order: {}".format(column_key_order),
+                       DEBUG["print-saved"])
 
     to_print = []
     for saved_result in Verifications.saved_results:
@@ -482,8 +483,9 @@ def _get_key_lengths(key_val_lengths):
     # table headings.
     headings = {}
     for key, val in key_val_lengths.items():
-        debug_print("key: {}, key length: {}, length of field from values "
-                     "{}".format(key, len(key), val), DEBUG["print-saved"])
+        debug_print_common("key: {}, key length: {}, length of field from "
+                           "values {}".format(key, len(key), val),
+                           DEBUG["print-saved"])
         if len(key) > val:
             # The key is longer then the value length
             if ' ' in key or '/' in key:
@@ -491,14 +493,14 @@ def _get_key_lengths(key_val_lengths):
                 space_indices = [m.start() for m in re.finditer(' ', key)]
                 slash_indices = [m.start() for m in re.finditer('/', key)]
                 space_indices.extend(slash_indices)
-                debug_print("key can be split @ {}".format(space_indices),
-                            DEBUG["print-saved"])
+                debug_print_common("key can be split @ {}".format(
+                    space_indices), DEBUG["print-saved"])
                 key_centre_index = int(old_div(len(key),2))
                 split_index = min(space_indices, key=lambda x: abs(
                     x - key_centre_index))
-                debug_print('The closest index to the middle ({}) is {}'
-                            .format(key_centre_index, split_index),
-                            DEBUG["print-saved"])
+                debug_print_common('The closest index to the middle ({}) is {}'
+                                   .format(key_centre_index, split_index),
+                                   DEBUG["print-saved"])
                 # Add the split key string as two strings (line 1, line
                 # 2) to the headings dictionary.
                 headings[key] = [key[:split_index+1].strip(),
