@@ -45,12 +45,26 @@ class VerificationException(Exception):
 
 
 class Verifications(object):
+    @classmethod
+    def _results_summary(cls, results):
+        summary = {}
+        for result in results:
+            if result.type_code not in summary:
+                summary[result.type_code] = 1
+            else:
+                summary[result.type_code] += 1
+        return summary
+
     def __init__(self):
         self.saved_tracebacks = []
         self.saved_results = []
 
-    def phase_summary_and_outcome(self):
-        pass
+    def phase_summary_and_outcome(self, phase):
+        results = self.phase_results(phase)
+        summary = self._results_summary(results)
+        debug_print("{} results summary:".format(phase.capitalize()),
+                    prettify=summary)
+        # TODO determine phase outcome from summary, result category and phase
 
     def phase_results(self, phase):
         test = SessionStatus.test_function

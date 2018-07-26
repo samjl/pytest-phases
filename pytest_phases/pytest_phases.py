@@ -585,8 +585,9 @@ def pytest_report_teststatus(report):
                 DEBUG["phases"])
 
     # Get the saved results for the completed test phase
-    SessionStatus.verifications.phase_results(report.when)
+    # SessionStatus.verifications.phase_results(report.when)
     # TODO get the saved result summary and the phase outcome
+    SessionStatus.verifications.phase_summary_and_outcome(report.when)
 
     if report.when == "teardown":
         # FIXME this is just for a single test
@@ -933,6 +934,7 @@ def _filter_scope_phase(result_att, scope, scope_name, phase):
     return [y for y in scope_results if y.phase == phase]
 
 
+# TODO refactor usages and remove
 def _results_summary(results):
     summary = {}
     for result in results:
