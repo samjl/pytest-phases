@@ -279,13 +279,15 @@ def pytest_fixture_setup(fixturedef, request):
     # done here (rather than in pytest_runtest_setup) as a workaround for
     # pytest bug https://github.com/pytest-dev/pytest/issues/3032
     SessionStatus.phase = "setup"
-    SessionStatus.test_function = request._pyfuncitem.name
+    test_name = request._pyfuncitem.name
+    SessionStatus.test_function = test_name
+    fixture_name = fixturedef.argname
 
     for test_func in SessionStatus.active_setups:
         # Remove any fixtures not already removed (in
         # pytest_fixture_post_finalizer) - parameterized module scoped
         # fixtures. Search for "[" to ensure fixture is parameterized.
-        if test_func.startswith("{}[".format(fixturedef.argname)):
+        if test_func.startswith("{}[".format(fixture_name)):
             SessionStatus.active_setups.remove(test_func)
             # TODO raise a (pytest-)warning
 
@@ -293,7 +295,7 @@ def pytest_fixture_setup(fixturedef, request):
         setup_params = "[{}]".format(request.param)
     else:
         setup_params = ""
-    setup_args = "{}{}".format(fixturedef.argname, setup_params)
+    setup_args = "{}{}".format(fixture_name, setup_params)
     SessionStatus.active_setups.append(setup_args)
     SessionStatus.test_fixtures[SessionStatus.test_function] = \
         list(SessionStatus.active_setups)
@@ -306,8 +308,7 @@ def pytest_fixture_setup(fixturedef, request):
 
     debug_print("Fixture SETUP for {0.argname} with {0.scope} scope COMPLETE"
                 .format(fixturedef), DEBUG["scopes"])
-    SessionStatus.verifications.fixture_setup_results(fixturedef.argname,
-                                                      request._pyfuncitem.name)
+    SessionStatus.verifications.fixture_setup_results(fixture_name, test_name)
 
 
 # Introduced in pytest 3.0.0
@@ -336,8 +337,10 @@ def pytest_fixture_post_finalizer(fixturedef, request):
 
     debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope "
                 "COMPLETE".format(fixturedef), DEBUG["scopes"])
-    SessionStatus.verifications.fixture_teardown_results(fixturedef.argname,
-                                                         request._pyfuncitem.name)
+    fixture_name = fixturedef.argname
+    test_name = request._pyfuncitem.name
+    SessionStatus.verifications.fixture_teardown_results(fixture_name,
+                                                         test_name)
 
 
 @pytest.hookimpl(hookwrapper=True)
