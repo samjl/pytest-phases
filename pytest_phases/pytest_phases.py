@@ -151,7 +151,6 @@ def pytest_configure(config):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    print("**************** pytest_collection_modifyitems *******************")
     # debug_print(session, DEBUG["mongo"])
     # debug_print(config, DEBUG["mongo"])
     # debug_print(items, DEBUG["mongo"])
@@ -161,8 +160,6 @@ def pytest_collection_modifyitems(session, config, items):
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_setup(item):
-    print("**************** pytest_runtest_setup start **********************")
-
     debug_print("Creating log file for module {}, test function {}".format(
         item.module.__name__, item.name), DEBUG["output-redirect"])
 
@@ -242,8 +239,6 @@ def pytest_runtest_setup(item):
     debug_print("Test SETUP - Raised exception: {}".format(raised_exc),
                 DEBUG["phases"])
 
-    print("**************** pytest_runtest_setup raise **********************")
-
     # Raise a saved error or an error raised by a setup fixture applied to the
     # current test function but associated by pytest to another test function
     _raise_existing_setup_error()
@@ -277,7 +272,6 @@ def pytest_runtest_setup(item):
 # Introduced in pytest 3.0.0
 @pytest.hookimpl(hookwrapper=True)
 def pytest_fixture_setup(fixturedef, request):
-    print("**************** pytest_fixture_setup start *********************")
     debug_print("Fixture SETUP for {0.argname} with {0.scope} scope"
                 .format(fixturedef), DEBUG["scopes"])
 
@@ -312,14 +306,12 @@ def pytest_fixture_setup(fixturedef, request):
 
     debug_print("Fixture SETUP for {0.argname} with {0.scope} scope COMPLETE"
                 .format(fixturedef), DEBUG["scopes"])
-    print("**************** pytest_fixture_setup end ***********************")
 
 
 # Introduced in pytest 3.0.0
 @pytest.hookimpl(hookwrapper=True)
 def pytest_fixture_post_finalizer(fixturedef, request):
     # FIXME check that the phase is teardown
-    print("**************** pytest_fixture_post_finalizer start *************")
     debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope"
                 .format(fixturedef), DEBUG["scopes"])
 
@@ -340,12 +332,10 @@ def pytest_fixture_post_finalizer(fixturedef, request):
 
     debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope "
                 "COMPLETE".format(fixturedef), DEBUG["scopes"])
-    print("**************** pytest_fixture_post_finalizer end ***************")
 
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_pyfunc_call(pyfuncitem):
-    print("**************** pytest_pyfunc_call start ************************")
     debug_print("CALL - Starting {}".format(pyfuncitem.name), DEBUG["phases"])
     SessionStatus.exec_func_fix = pyfuncitem.name
     SessionStatus.test_function = pyfuncitem.name
@@ -354,14 +344,12 @@ def pytest_pyfunc_call(pyfuncitem):
         {"_id": SessionStatus.test_object_id},
         {"$set": {"testFunction": SessionStatus.test_function}})
 
-    print("**************************************************************")
     i = get_current_index()
     # FIXME keep track of current test ObjectId or find it every time?
     query = {"_id": SessionStatus.test_object_id}
     update = {"$set": {"call": {"logStart": i}}}
     debug_print("Updating oid {}".format(query), DEBUG["mongo"])
     SessionStatus.mongo.update_test_result(query, update)
-    print("**************************************************************")
 
     outcome = yield
     debug_print("CALL - Completed {}, outcome {}".format(pyfuncitem, outcome),
@@ -370,7 +358,6 @@ def pytest_pyfunc_call(pyfuncitem):
     raised_exc = outcome.excinfo
     debug_print("CALL - Caught exception: {}".format(raised_exc),
                 DEBUG["phases"])
-    print("**************** pytest_pyfunc_call raise ************************")
     if raised_exc:
         if raised_exc[0] not in (WarningException, VerificationException):
             # For exceptions other than Warning and Verifications:
@@ -391,7 +378,6 @@ def pytest_pyfunc_call(pyfuncitem):
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_teardown(item, nextitem):
-    print("**************** pytest_runtest_teardown start *******************")
     debug_print("Test TEARDOWN - Starting {}".format(item), DEBUG["phases"])
     SessionStatus.phase = "teardown"
 
@@ -410,7 +396,6 @@ def pytest_runtest_teardown(item, nextitem):
     debug_print("Test TEARDOWN - Raised exception: {}".format(raised_exc),
                 DEBUG["phases"])
 
-    print("**************** pytest_runtest_teardown raise *******************")
     if raised_exc:
         if raised_exc[0] not in (WarningException, VerificationException):
             # Detect a regular assertion (assert) raised by the setup phase.
