@@ -575,7 +575,19 @@ def _raise_first_saved_exc_type(type_to_raise):
 def pytest_report_teststatus(report):
     debug_print("TEST REPORT FOR {} PHASE: {}".format(report.when,
                 report.outcome), DEBUG["phases"])
-    yield
+    result = yield
+    # result-category, shortletter and verbose word for reporting
+    # use result-category to detect xfail etc.
+    result_category = result._result[0]
+    # TODO Check that empty '' result_category refers to undefined test
+    # reports - passed setup or teardown only
+    debug_print("result category: {}".format(result_category),
+                DEBUG["phases"])
+
+    # Get the saved results for the completed test phase
+    SessionStatus.verifications.phase_results(report.when)
+    # TODO get the saved result summary and the phase outcome
+
     if report.when == "teardown":
         # FIXME this is just for a single test
         debug_print("OUTPUTREDIRECT LAST TEARDOWN MESSAGE",

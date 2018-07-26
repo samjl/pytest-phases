@@ -49,6 +49,62 @@ class Verifications(object):
         self.saved_tracebacks = []
         self.saved_results = []
 
+    def phase_summary_and_outcome(self):
+        pass
+
+    def phase_results(self, phase):
+        test = SessionStatus.test_function
+        if phase == "call":
+            # call only
+            results = self.filter_results(phase=phase, test_function=test)
+        else:
+            # module scope fixtures filter
+            module = SessionStatus.module
+            results = self.filter_results(phase=phase, scope="module",
+                                          module_name=module)
+            if SessionStatus.class_name:
+                # class scope fixtures filter
+                class_name = SessionStatus.class_name
+                results.extend(self.filter_results(phase=phase, scope="class",
+                                                   class_name=class_name))
+            # function scope fixtures filter
+            results.extend(self.filter_results(phase=phase, scope="function",
+                                               test_function=test))
+        return results
+
+    def filter_results(self, test_function=None, phase=None, scope=None,
+                       fixture_name=None, class_name=None, module_name=None):
+        # DEBUG
+        local_vars = inspect.getargvalues(inspect.currentframe())[-1]
+        params = ["{}:{}".format(k, v) for k, v in local_vars.items() if v is
+                  not None and k != "self"]
+        debug_print("Filter params:", prettify=params)
+        # TODO assert if all parameters are None
+        filtered = []
+        for res in self.saved_results:
+            if phase:
+                if res.phase != phase:
+                    continue
+            if scope:
+                if res.scope != scope:
+                    continue
+            if test_function:
+                if res.test_function != test_function:
+                    continue
+            if fixture_name:
+                if res.fixture_name != fixture_name:
+                    continue
+            if class_name:
+                if res.class_name != class_name:
+                    continue
+            if module_name:
+                if res.module != module_name:
+                    continue
+            filtered.append(res)
+        debug_print("Filtered results:", prettify=filtered)
+        return filtered
+
+
 class SessionStatus(object):
     # Track the session status
     phase = None  # Current test phase: setup, call, teardown
