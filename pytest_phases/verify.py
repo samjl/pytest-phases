@@ -44,6 +44,11 @@ class VerificationException(Exception):
     pass
 
 
+class Verifications(object):
+    def __init__(self):
+        self.saved_tracebacks = []
+        self.saved_results = []
+
 class SessionStatus(object):
     # Track the session status
     phase = None  # Current test phase: setup, call, teardown
@@ -63,12 +68,7 @@ class SessionStatus(object):
     mongo = None
     test_object_id = None  # Same as mongo.test_oid
 
-
-class Verifications(object):
-    # Module level storage of verification results and tracebacks for
-    # failures and warnings.
-    saved_tracebacks = []
-    saved_results = []
+    verifications = Verifications()
 
 
 class Result(object):
@@ -346,7 +346,7 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
     tb_depth_1.extend(source_call)
 
     depth += 1
-    s_res = Verifications.saved_results
+    s_res = SessionStatus.verifications.saved_results
     type_code = status[0]
     if type_code == "F" or type_code == "W":
         # Types processed by this function are "P", "F" and "W"
@@ -354,7 +354,7 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
                                                  full_method_trace,
                                                  tb=tb_depth_1)
 
-        s_tb = Verifications.saved_tracebacks
+        s_tb = SessionStatus.verifications.saved_tracebacks
         s_tb.append(FailureTraceback(exc_type, exc_tb, trace_complete))
         failure_traceback = s_tb[-1]
     else:
@@ -370,7 +370,7 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
 def set_saved_raised():
     # Set saved traceback as raised so they are not subsequently raised
     # again.
-    for saved_traceback in Verifications.saved_tracebacks:
+    for saved_traceback in SessionStatus.verifications.saved_tracebacks:
         saved_traceback.raised = True
 
 
@@ -417,7 +417,7 @@ def print_saved_results(column_key_order="Step", extra_info=False):
                        DEBUG["print-saved"])
 
     to_print = []
-    for saved_result in Verifications.saved_results:
+    for saved_result in SessionStatus.verifications.saved_results:
         to_print.append(saved_result.formatted_dict())
 
     key_val_lengths = {}

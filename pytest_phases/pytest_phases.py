@@ -541,8 +541,8 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
                 DEBUG["not-plugin"])
 
     # TODO refactor the saved_results format- make it an object
-    s_res = Verifications.saved_results
-    s_tb = Verifications.saved_tracebacks
+    s_res = SessionStatus.verifications.saved_results
+    s_tb = SessionStatus.verifications.saved_tracebacks
     s_tb.append(FailureTraceback(raised_exc[0], raised_exc[2], trace_complete,
                                  raised=True))
     if CONFIG["include-all-local-vars"].value:
@@ -558,7 +558,7 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
 
 
 def _raise_first_saved_exc_type(type_to_raise):
-    for i, saved_traceback in enumerate(Verifications.saved_tracebacks):
+    for i, saved_traceback in enumerate(SessionStatus.verifications.saved_tracebacks):
         exc_type = saved_traceback.exc_type
         debug_print("saved traceback index: {}, type: {}, searching for: {}"
                     .format(i, exc_type, type_to_raise), DEBUG["verify"])
@@ -584,7 +584,7 @@ def pytest_report_teststatus(report):
 
 
 def print_new_results(phase):
-    for i, s_res in enumerate(Verifications.saved_results):
+    for i, s_res in enumerate(SessionStatus.verifications.saved_results):
         res_info = s_res["Extra Info"]
         if res_info.phase == phase and not res_info.printed:
             debug_print("Valid result ({}) found with info: {}"
@@ -612,7 +612,7 @@ def pytest_terminal_summary(terminalreporter):
     #         print "{} - {}".format(i, tb.__dict__)
 
     if DEBUG["verify"]:
-        for saved_tb in Verifications.saved_tracebacks:
+        for saved_tb in SessionStatus.verifications.saved_tracebacks:
             debug_print("Result {0.result_link} linked to traceback {0}"
                         .format(saved_tb), DEBUG["verify"])
 
@@ -621,7 +621,7 @@ def pytest_terminal_summary(terminalreporter):
     # Results table
     print_saved_results(extra_info=True)
     # Saved trace back information
-    saved_tracebacks = Verifications.saved_tracebacks
+    saved_tracebacks = SessionStatus.verifications.saved_tracebacks
     if saved_tracebacks:
         pytest.log.high_level_step("Saved tracebacks")
     for i, saved_tb in enumerate(saved_tracebacks):
@@ -642,7 +642,7 @@ def pytest_terminal_summary(terminalreporter):
     result_by_fixture = OrderedDict()
     debug_print("Scope/phase saved results summary in executions order:",
                 DEBUG["summary"])
-    for saved_result in Verifications.saved_results:
+    for saved_result in SessionStatus.verifications.saved_results:
         key = "{0.fixture_name}:{0.test_function}:{0.phase}:{0.scope}"\
             .format(saved_result)
         if key not in result_by_fixture:
@@ -689,8 +689,8 @@ def pytest_terminal_summary(terminalreporter):
                                         test_func, phase)
             fixture_results[phase]["function"] = _filter_fixture(f_res)
         # Call (test function) results
-        call = [x for x in Verifications.saved_results if x.test_function == test_func and
-                      x.phase == "call"]
+        call = [x for x in SessionStatus.verifications.saved_results
+                if x.test_function == test_func and x.phase == "call"]
         call_res_summary = _results_summary(call)
         fixture_results["call"] = {"results": call,
                                    "overall": {"saved": call_res_summary}}
@@ -915,7 +915,7 @@ def _get_test_summary_result(setup_result, call_result, teardown_result):
 
 
 def _filter_scope_phase(result_att, scope, scope_name, phase):
-    s_r = Verifications.saved_results
+    s_r = SessionStatus.verifications.saved_results
     scope_results = [x for x in s_r if getattr(x, result_att) == scope_name
                            and x.scope == scope]
     return [y for y in scope_results if y.phase == phase]
