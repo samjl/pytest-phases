@@ -26,6 +26,10 @@ from .loglevels import (
     get_current_l1_msg,
     get_current_level
 )
+from .outcomes import (
+    outcome_conditionals,
+    phase_specific_result
+)
 
 # TODO The traceback depth set here is just an arbitrary figure and could be
 # user configurable up to the maximum (1000?).
@@ -59,12 +63,20 @@ class Verifications(object):
         self.saved_tracebacks = []
         self.saved_results = []
 
-    def phase_summary_and_outcome(self, phase):
+    def phase_summary_and_outcome(self, phase, result_category):
         results = self.phase_results(phase)
         summary = self._results_summary(results)
         debug_print("{} results summary:".format(phase.capitalize()),
                     prettify=summary)
-        # TODO determine phase outcome from summary, result category and phase
+
+        def phase_outcome(saved_summary, pytest_outcome):
+            for outcome_condition, outcome in outcome_conditionals:
+                if outcome_condition(saved_summary, pytest_outcome):
+                    return phase_specific_result(phase, outcome)
+
+        debug_print("{} outcome: {}".format(
+            phase.capitalize(), phase_outcome(summary, result_category)
+        ))
 
     def phase_results(self, phase):
         test = SessionStatus.test_function

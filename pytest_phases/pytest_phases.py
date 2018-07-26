@@ -583,11 +583,9 @@ def pytest_report_teststatus(report):
     # reports - passed setup or teardown only
     debug_print("result category: {}".format(result_category),
                 DEBUG["phases"])
-
-    # Get the saved results for the completed test phase
-    # SessionStatus.verifications.phase_results(report.when)
-    # TODO get the saved result summary and the phase outcome
-    SessionStatus.verifications.phase_summary_and_outcome(report.when)
+    # Get the saved results, saved result summary and the phase outcome
+    SessionStatus.verifications.phase_summary_and_outcome(report.when,
+                                                          result_category)
 
     if report.when == "teardown":
         # FIXME this is just for a single test

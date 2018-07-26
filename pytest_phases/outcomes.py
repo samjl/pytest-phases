@@ -104,3 +104,19 @@ outcome_conditions = (
     (lambda o: True, Outcomes.passed)
     # TODO drop out to unknown or pytest outcome?
 )
+
+# this list is hierarchical so order is important
+outcome_conditionals = (
+    (lambda summary, pytest_result: pytest_result == "skipped", Outcomes.skip),
+    (lambda summary, pytest_result: pytest_result == "xfailed",
+     Outcomes.expected_fail),
+    (lambda summary, pytest_result: pytest_result == "xpassed",
+     Outcomes.unexpected_pass),
+    (lambda summary, pytest_result:
+     True in [x in list(summary.keys()) for x in ("A", "O", "F")],
+     Outcomes.fail),
+    (lambda summary, pytest_result:
+     True in ["W" in list(summary.keys())], Outcomes.warning),
+    (lambda summary, pytest_result: pytest_result == "failed", Outcomes.fail),
+    (lambda summary, pytest_result: True, Outcomes.passed)
+)
