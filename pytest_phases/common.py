@@ -5,6 +5,7 @@
 
 from __future__ import print_function
 from builtins import object
+from pprint import pformat
 
 
 class DebugFunctionality(object):
@@ -69,7 +70,9 @@ CONFIG = {"include-verify-local-vars":
           }
 
 
-def debug_print(msg, flag):
+def debug_print(msg, flag, prettify=None):
     # Print a debug message if the corresponding flag is set.
     if flag.enabled:
         print("DEBUG({}): {}".format(flag.name, msg))
+        if prettify:
+            print(pformat(prettify, indent=4, width=80))
