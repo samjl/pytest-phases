@@ -14,6 +14,8 @@ from builtins import object, range
 from pymongo import MongoClient
 from .loglevels import MIN_LEVEL, MAX_LEVEL, get_parents
 from .verify import SessionStatus
+from .common import DEBUG
+from .common import debug_print as debug_print_common
 standard_library.install_aliases()
 
 # don't bother with a timestamp - use the ObjectId
@@ -22,32 +24,57 @@ standard_library.install_aliases()
 # database)
 
 # DEBUG
-DROP_COLLECTIONS = True
+DROP_COLLECTIONS = False
+
+
+def debug_print(msg, prettify=None):
+    debug_print_common(msg, DEBUG["mongo"], prettify)
+
+
+def _dummy_method(*args, **kwargs):
+    pass
 
 
 class MongoConnector(object):
-    session_id = None
-    hosts = None
-    parents = ["-"] * (MAX_LEVEL - MIN_LEVEL)
+    session_id = None  # FIXME move to class instance
+    # hosts = None
+    parents = ["-"] * (MAX_LEVEL - MIN_LEVEL)  # FIXME
 
-    def __init__(self, hosts):
-        # TODO add exception/check for hosts is None
-        self.db = MongoClient(hosts).proto
-        # test ID
-        # test run
+    def __new__(cls, *args, **kwargs):
+        if not args[0]:
+            # hosts is None or []
+            print("mongoDB disabled")
+            modify_methods = []
+            for attr, obj in cls.__dict__.items():
+                if attr.startswith("__"):
+                    continue
+                if callable(obj):
+                    debug_print("Modifying {}: {}".format(attr, obj))
+                    modify_methods.append(attr)
+            for method in modify_methods:
+                setattr(cls, method, _dummy_method)
+        self = super().__new__(cls)
+        return self
 
-        # phase
-        # fixture
-        # test function
-        self.test_oid = None
-        self.link_oid = None
+    def __init__(self, enable, hosts):
+        if enable:
+            self.db = MongoClient(hosts).proto
 
-        if DROP_COLLECTIONS:
-            self.db.drop_collection("sessioncounter")
-            self.db.drop_collection("sessions")
-            self.db.drop_collection("testresults")
-            self.db.drop_collection("loglinks")
-            self.db.drop_collection("testlogs")
+            self.session_oid = None
+            self.module_oid = None
+            self.test_oid = None
+            self.fix_oid = None
+            self.link_oid = None
+
+            if DROP_COLLECTIONS:
+                self.db.drop_collection("sessioncounter")
+                self.db.drop_collection("sessions")
+                self.db.drop_collection("modules")
+                self.db.drop_collection("fixtures")
+                self.db.drop_collection("testresults")
+                self.db.drop_collection("loglinks")
+                self.db.drop_collection("testlogs")
+                # self.db.drop_collection("tracebacks")
 
     def _get_session_id(self):
         res = self.db.sessioncounter.update_one({"_id": 0}, {"$inc": {

@@ -80,7 +80,7 @@ def pytest_addoption(parser):
 @pytest.hookimpl(trylast=True)  # TODO is this still required?
 def pytest_configure(config):
     print("phases configuration (loglevels, outputredirect, verify)")
-    # Load user defined configuration from file
+    # Load user defined configuration from file (config.cfg)
     config_path = pkg_resources.resource_filename('pytest_phases', '')
     parser = ConfigParser()
     parser.read(os.path.join(config_path, "config.cfg"))
@@ -101,8 +101,6 @@ def pytest_configure(config):
                 CONFIG[option].value = parser.get("general", option)
         except Exception as e:
             print(e)
-    parser.read(os.path.join(config_path, "mongo.cfg"))
-    mongo_hosts = parser.get("general", "hosts").split(",")
 
     for name, val in CONFIG.items():
         cmd_line_val = config.getoption("--{}".format(name))
@@ -115,11 +113,17 @@ def pytest_configure(config):
             else:
                 CONFIG[name].value = CONFIG[name].value_type(cmd_line_val)
 
-    SessionStatus.mongo = MongoConnector(mongo_hosts)
     print("pytest-phases configuration:")
     for option in list(CONFIG.keys()):
         print("{0}: type={1.value_type}, val={1.value}".format(option, CONFIG[
             option]))
+
+    # User defined mongo DB configuration (mongo.cfg)
+    parser.read(os.path.join(config_path, "mongo.cfg"))
+    mongo_hosts = parser.get("general", "hosts").split(",")
+    mongo_enable = parser.getboolean("general", "enable")
+
+    SessionStatus.mongo = MongoConnector(mongo_enable, mongo_hosts)
 
     if not CONFIG["no-redirect"].value:
         debug_print("Perform output redirection", DEBUG["output-redirect"])
