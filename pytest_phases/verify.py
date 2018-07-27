@@ -228,7 +228,7 @@ class Result(object):
             f["Source Fixture/Function"] = self.fixture_name
             f["Test Function"] = self.test_function
             f["Active Setups"] = ",".join(self.active)
-            # f["ID"] = hex(id(self))[-4:]
+            f["ID"] = hex(id(self))[-4:]
             # f["Tb ID"] = hex(id(self.traceback_link))[-4:] if \
             #     self.traceback_link else None
             # if self.traceback_link:
@@ -498,7 +498,7 @@ def _get_call_source(func_source, func_call_source_line, call_line_number,
     return trace_level
 
 
-def print_saved_results(column_key_order="Step", extra_info=False):
+def print_saved_results(column_key_order="Step"):
     """Format the saved results as a table and print.
     The results are printed in the order they were saved.
     Keyword arguments:
@@ -539,20 +539,12 @@ def _print_result(result, key_val_lengths, column_key_order):
         key = key.strip()
         if key not in column_key_order:
             length = key_val_lengths[key]
-            if key == "Extra Info":
-                val = result[key].format_result_info()
-            else:
-                val = result[key]
+            val = result[key]
             line += '| {0:^{width}} '.format(str(val), width=length)
     line += "|"
-    # line += "| {}".format(i)
     # pytest.log.detail_step(line)
     # DEBUG
     print(line)
-    # print result["Extra Info"].source_function
-    # for line in result["Extra Info"].source_call:
-    #     print line
-    # DEBUG END
 
 
 def _get_val_lengths(saved_results, key_val_lengths):

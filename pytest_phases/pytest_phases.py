@@ -624,7 +624,7 @@ def pytest_terminal_summary(terminalreporter):
     # Retrieve the saved results and traceback info for any failed
     # verifications.
     # Results table
-    print_saved_results(extra_info=True)
+    print_saved_results()
     # Saved trace back information
     saved_tracebacks = SessionStatus.verifications.saved_tracebacks
     if saved_tracebacks:
