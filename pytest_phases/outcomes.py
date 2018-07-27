@@ -120,3 +120,9 @@ outcome_conditionals = (
     (lambda summary, pytest_result: pytest_result == "failed", Outcomes.fail),
     (lambda summary, pytest_result: True, Outcomes.passed)
 )
+
+fixture_outcome_conditionals = (
+    (lambda s: True in [x in list(s.keys()) for x in ("A", "O", "F")],
+     Outcomes.fail),
+    (lambda s: True, Outcomes.passed)
+)

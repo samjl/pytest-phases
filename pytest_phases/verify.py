@@ -27,6 +27,7 @@ from .loglevels import (
     get_current_level
 )
 from .outcomes import (
+    fixture_outcome_conditionals,
     outcome_conditionals,
     phase_specific_result
 )
@@ -59,19 +60,71 @@ class Verifications(object):
                 summary[result.type_code] += 1
         return summary
 
+    @classmethod
+    def _raise_exc_type(cls, results, type_to_raise):
+        for i, saved_result in enumerate(results):
+            if saved_result.traceback_link:
+                exc_type = saved_result.traceback_link.exc_type
+                debug_print("saved traceback index: {}, type: {}, "
+                            "searching for: {}".format(i, exc_type,
+                                                       type_to_raise),
+                            DEBUG["verify"])
+                if (exc_type == type_to_raise and not
+                        saved_result.traceback_link.raised):
+                    msg = "{0.msg} - {0.status}".format(saved_result)
+                    tb = saved_result.traceback_link.exc_traceback
+                    debug_print("Re-raising first saved {}: {} {} {}"
+                                .format(type_to_raise, exc_type, msg, tb))
+                    set_saved_raised()  # FIXME is this required?
+                    # for python 2 and 3 compatibility
+                    raise_(exc_type, msg, tb)
+
     def __init__(self):
         self.saved_tracebacks = []
         self.saved_results = []
 
-    def fixture_setup_results(self, fixture_name, test_name):
-        results = self._fixture_results("setup", fixture_name, test_name)
-        # TODO get results summary
-        # TODO get fixture setup result
+    # Raise any saved VerificationExceptions over WarningExceptions
+    # Any other exceptions have already been raised (and saved when caught in
+    # pytest_fixture_setup).
+    def fixture_setup_raise_saved(self, fixture_name, test_name):
+        results = self._fixture_setup_results(fixture_name, test_name)
+        self._raise_exc_type(results, VerificationException)
+        self._raise_exc_type(results, WarningException)
 
-    def fixture_teardown_results(self, fixture_name, test_name):
+    def fixture_teardown_raise_saved(self, fixture_name, test_name):
+        results = self._fixture_teardown_results(fixture_name, test_name)
+        self._raise_exc_type(results, VerificationException)
+        self._raise_exc_type(results, WarningException)
+
+    def _fixture_setup_results(self, fixture_name, test_name):
+        results = self._fixture_results("setup", fixture_name, test_name)
+        summary = self._results_summary(results)
+        debug_print("{} results summary:".format(fixture_name),
+                    prettify=summary)
+
+        def fixture_outcome(saved_summary):
+            for outcome_condition, outcome in fixture_outcome_conditionals:
+                if outcome_condition(saved_summary):
+                    return phase_specific_result("setup", outcome)
+
+        debug_print("{} setup outcome: {}".format(fixture_name,
+                                                  fixture_outcome(summary)))
+        return results
+
+    def _fixture_teardown_results(self, fixture_name, test_name):
         results = self._fixture_results("teardown", fixture_name, test_name)
-        # TODO get results summary
-        # TODO get fixture setup result
+        summary = self._results_summary(results)
+        debug_print("{} results summary:".format(fixture_name),
+                    prettify=summary)
+
+        def fixture_outcome(saved_summary):
+            for outcome_condition, outcome in fixture_outcome_conditionals:
+                if outcome_condition(saved_summary):
+                    return phase_specific_result("setup", outcome)
+
+        debug_print("{} teardown outcome: {}".format(fixture_name,
+                                                     fixture_outcome(summary)))
+        return results
 
     def _fixture_results(self, phase, fixture_name, test_name):
         return self.filter_results(phase=phase, fixture_name=fixture_name,

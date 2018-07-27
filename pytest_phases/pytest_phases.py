@@ -234,36 +234,12 @@ def pytest_runtest_setup(item):
     outcome = yield
     debug_print("Test SETUP - Complete {}, outcome: {}".format(item, outcome),
                 DEBUG["phases"])
-
+    # DEBUG This is only here to double check that the fixture has raised
+    # the correct exception
+    # TODO check if an assertion could come from anywhere other than a fixture
     raised_exc = outcome.excinfo
     debug_print("Test SETUP - Raised exception: {}".format(raised_exc),
                 DEBUG["phases"])
-
-    # Raise a saved error or an error raised by a setup fixture applied to the
-    # current test function but associated by pytest to another test function
-    _raise_existing_setup_error()
-    # TODO should this check be before checking the saved errors? Warn and
-    # Veri..Exceptions
-    if raised_exc:
-        if raised_exc[0] not in (WarningException, VerificationException):
-            # Detect a regular assertion (assert) raised by the setup phase.
-            # Save it so it is printed in the results table.
-            _save_non_verify_exc(raised_exc)
-            set_saved_raised()
-    else:  # FIXME no longer requried
-        # Nothing raised so check if there are any saved results that
-        # need to be raised.
-        if not CONFIG["continue-on-setup-failure"].value:
-            # Re-raise first VerificationException not yet raised.
-            # Saved and immediately raised VerificationExceptions are
-            # raised here.
-            print("LOOKING FOR SETUP VERIFY EXCEPTIONS TO RAISE")
-            _raise_first_saved_exc_type(VerificationException)
-        if not CONFIG["continue-on-setup-warning"].value and \
-           CONFIG["raise-warnings"].value:
-            # Else re-raise first WarningException not yet raised
-            print("LOOKING FOR SETUP WARNINGS TO RAISE")
-            _raise_first_saved_exc_type(WarningException)
 
     # TODO could this be done at start of pytest_pyfunc_call?
     SessionStatus.phase = "call"
@@ -304,11 +280,27 @@ def pytest_fixture_setup(fixturedef, request):
         {"_id": SessionStatus.test_object_id},
         {"$set": {"fixtures": SessionStatus.test_fixtures[SessionStatus.test_function]}})
 
-    yield
+    res = yield
+    debug_print("Fixture setup (after yield): {}".format(res),
+                DEBUG["scopes"], prettify=res.__dict__)
+    if res._excinfo:
+        # An exception was raised by the fixture setup
+        debug_print("{}".format(res._excinfo[0].__dict__),
+                    DEBUG["scopes"])
+        if res._excinfo[0] not in (WarningException, VerificationException):
+            # Detect a regular assertion (assert) raised by the setup phase.
+            # Save it so it is printed in the results table.
+            _save_non_verify_exc(res._excinfo)
+            set_saved_raised()  # FIXME is this required?
+            # TODO in future we'd like to be able to specify the Exception
+            # type from the verify function so this would have to change. We
+            # could check if the traceback object address is already saved
+    # TODO unsure how to detect skip etc. here
 
     debug_print("Fixture SETUP for {0.argname} with {0.scope} scope COMPLETE"
                 .format(fixturedef), DEBUG["scopes"])
-    SessionStatus.verifications.fixture_setup_results(fixture_name, test_name)
+    SessionStatus.verifications.fixture_setup_raise_saved(fixture_name,
+                                                          test_name)
 
 
 # Introduced in pytest 3.0.0
@@ -317,6 +309,32 @@ def pytest_fixture_post_finalizer(fixturedef, request):
     # FIXME check that the phase is teardown
     debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope"
                 .format(fixturedef), DEBUG["scopes"])
+
+    # fixturedef.cached_result is always (None, 0, none) so use
+    # sys.exc_info instead
+    exc_info = sys.exc_info()
+    debug_print("Fixture teardown exc_info: {}".format(exc_info),
+                DEBUG["scopes"])
+    if exc_info:
+        # An exception was raised by the fixture setup
+        debug_print("{}".format(exc_info[0].__dict__),
+                    DEBUG["scopes"])
+        if exc_info[0] not in (WarningException, VerificationException):
+            # Detect a regular assertion (assert) raised by the teardown phase.
+            # Save it so it is printed in the results table.
+            _save_non_verify_exc(exc_info)
+            set_saved_raised()  # FIXME is this required?
+            # TODO in future we'd like to be able to specify the Exception
+            # type from the verify function so this would have to change. We
+            # could check if the traceback object address is already saved
+    # TODO unsure how to detect skip etc. here
+
+    debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope "
+                "COMPLETE".format(fixturedef), DEBUG["scopes"])
+    fixture_name = fixturedef.argname
+    test_name = request._pyfuncitem.name
+    SessionStatus.verifications.fixture_teardown_raise_saved(fixture_name,
+                                                             test_name)
 
     res = yield
     # DEBUG seem to get multiple module based executions of this code ???
@@ -335,12 +353,6 @@ def pytest_fixture_post_finalizer(fixturedef, request):
     except ValueError as e:
         print(e)
 
-    debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope "
-                "COMPLETE".format(fixturedef), DEBUG["scopes"])
-    fixture_name = fixturedef.argname
-    test_name = request._pyfuncitem.name
-    SessionStatus.verifications.fixture_teardown_results(fixture_name,
-                                                         test_name)
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -404,23 +416,6 @@ def pytest_runtest_teardown(item, nextitem):
     raised_exc = outcome.excinfo
     debug_print("Test TEARDOWN - Raised exception: {}".format(raised_exc),
                 DEBUG["phases"])
-
-    if raised_exc:
-        if raised_exc[0] not in (WarningException, VerificationException):
-            # Detect a regular assertion (assert) raised by the setup phase.
-            # Save it so it is printed in the results table.
-            _save_non_verify_exc(raised_exc, use_prev_teardown=True)
-            set_saved_raised()
-        else:
-            debug_print("TEARDOWN - Found an exception already re-raised by "
-                        "wrapper", DEBUG["phases"])
-    else:
-        # Re-raise first VerificationException not yet raised
-        # Saved and immediately raised VerificationExceptions are raised here.
-        _raise_first_saved_exc_type(VerificationException)
-        # Else re-raise first WarningException not yet raised
-        if CONFIG["raise-warnings"].value:
-            _raise_first_saved_exc_type(WarningException)
 
 
 def _raise_existing_setup_error():
