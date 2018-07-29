@@ -317,8 +317,7 @@ def pytest_fixture_post_finalizer(fixturedef, request):
                 DEBUG["scopes"])
     if exc_info:
         # An exception was raised by the fixture setup
-        debug_print("{}".format(exc_info[0].__dict__),
-                    DEBUG["scopes"])
+        debug_print("{}".format(exc_info[0].__dict__), DEBUG["scopes"])
         if exc_info[0] not in (WarningException, VerificationException):
             # Detect a regular assertion (assert) raised by the teardown phase.
             # Save it so it is printed in the results table.
@@ -352,7 +351,6 @@ def pytest_fixture_post_finalizer(fixturedef, request):
         SessionStatus.active_setups.remove(setup_args)
     except ValueError as e:
         print(e)
-
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -471,9 +469,30 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
     exc_type = "O"
     exc_msg = str(raised_exc[1]).strip().replace("\n", " ")
     debug_print("Saving caught exception (non-plugin): {}, {}".format(
-        exc_type, exc_msg), DEBUG["not-plugin"])
+        exc_type, exc_msg), DEBUG["verify"])
 
     stack_trace = traceback.extract_tb(raised_exc[2])
+    # DO NOT RELY ON THIS METHOD BEING CONSISTENT BETWEEN PYTEST VERSION
+    # Try to extract a pytest failure method from the traceback type name
+    try:
+        trace_name = raised_exc[0].__name__.lower()
+    except AttributeError:
+        trace_name = None
+
+    if trace_name == "skipped":
+        # Pytest special case - skip
+        # Note that this also covers pytest.importorskip
+        debug_print("Pytest Skip detected in traceback", DEBUG["verify"])
+        failure_type = "SKIP"
+    elif trace_name == "xfailed":
+        debug_print("Pytest XFail detected in traceback", DEBUG["verify"])
+        failure_type = "XFAIL"
+    else:
+        # General failure for AssertionError, TypeError etc. The traceback
+        # provides the greater exception detail
+        # Note that this also covers pytest.fail
+        failure_type = "FAIL"
+
     frame = raised_exc[2]
     # stack_trace is a list of stack trace tuples for each
     # stack depth (filename, line number, function name*, text)
@@ -538,7 +557,7 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
         module_function_line = trace_complete[-3]
     else:
         module_function_line = trace_complete[-2]
-    s_res.append(Result(exc_msg, "FAIL", exc_type, fixture_scope,
+    s_res.append(Result(exc_msg, failure_type, exc_type, fixture_scope,
                         module_function_line, [trace_complete[-1]],
                         True, source_locals=locals_all_frames[-1],
                         fail_traceback_link=s_tb[-1],
