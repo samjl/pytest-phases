@@ -107,7 +107,8 @@ outcome_conditions = (
 
 # this list is hierarchical so order is important
 outcome_conditionals = (
-    (lambda summary, pytest_result: pytest_result == "skipped", Outcomes.skip),
+    (lambda summary, pytest_result: pytest_result == "skipped",
+     Outcomes.skip),
     (lambda summary, pytest_result: pytest_result == "xfailed",
      Outcomes.expected_fail),
     (lambda summary, pytest_result: pytest_result == "xpassed",
@@ -115,14 +116,22 @@ outcome_conditionals = (
     (lambda summary, pytest_result:
      True in [x in list(summary.keys()) for x in ("A", "O", "F")],
      Outcomes.fail),
-    (lambda summary, pytest_result:
-     True in ["W" in list(summary.keys())], Outcomes.warning),
-    (lambda summary, pytest_result: pytest_result == "failed", Outcomes.fail),
-    (lambda summary, pytest_result: True, Outcomes.passed)
+    (lambda summary, pytest_result: True in ["W" in list(summary.keys())],
+     Outcomes.warning),
+    (lambda summary, pytest_result: pytest_result == "failed",
+     Outcomes.fail),
+    (lambda summary, pytest_result: True,
+     Outcomes.passed)
 )
 
+# TODO add skip and xfail
 fixture_outcome_conditionals = (
+    (lambda s: "S" in list(s.keys()),
+     Outcomes.skip),
+    (lambda s: "X" in list(s.keys()),
+     Outcomes.expected_fail),
     (lambda s: True in [x in list(s.keys()) for x in ("A", "O", "F")],
      Outcomes.fail),
-    (lambda s: True, Outcomes.passed)
+    (lambda s: True,
+     Outcomes.passed)
 )

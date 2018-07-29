@@ -466,11 +466,7 @@ def _raise_existing_setup_error():
 
 
 def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
-    exc_type = "O"
     exc_msg = str(raised_exc[1]).strip().replace("\n", " ")
-    debug_print("Saving caught exception (non-plugin): {}, {}".format(
-        exc_type, exc_msg), DEBUG["verify"])
-
     stack_trace = traceback.extract_tb(raised_exc[2])
     # DO NOT RELY ON THIS METHOD BEING CONSISTENT BETWEEN PYTEST VERSION
     # Try to extract a pytest failure method from the traceback type name
@@ -484,14 +480,20 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
         # Note that this also covers pytest.importorskip
         debug_print("Pytest Skip detected in traceback", DEBUG["verify"])
         failure_type = "SKIP"
+        exc_type = "S"
     elif trace_name == "xfailed":
         debug_print("Pytest XFail detected in traceback", DEBUG["verify"])
         failure_type = "XFAIL"
+        exc_type = "X"
     else:
         # General failure for AssertionError, TypeError etc. The traceback
         # provides the greater exception detail
         # Note that this also covers pytest.fail
         failure_type = "FAIL"
+        exc_type = "O"
+
+    debug_print("Saving caught exception (non-plugin): {}, {}".format(
+        exc_type, exc_msg), DEBUG["verify"])
 
     frame = raised_exc[2]
     # stack_trace is a list of stack trace tuples for each
@@ -573,8 +575,8 @@ def _raise_first_saved_exc_type(type_to_raise):
         if exc_type == type_to_raise and not saved_traceback.raised:
             msg = "{0.msg} - {0.status}".format(saved_traceback.result_link)
             tb = saved_traceback.exc_traceback
-            print("Re-raising first saved {}: {} {} {}".\
-                format(type_to_raise, exc_type, msg, tb))
+            print("Re-raising first saved {}: {} {} {}"
+                  .format(type_to_raise, exc_type, msg, tb))
             set_saved_raised()
             raise_(exc_type, msg, tb)  # for python 2 and 3 compatibility
 
