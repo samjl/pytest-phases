@@ -120,7 +120,7 @@ class Verifications(object):
         def fixture_outcome(saved_summary):
             for outcome_condition, outcome in fixture_outcome_conditionals:
                 if outcome_condition(saved_summary):
-                    return phase_specific_result("setup", outcome)
+                    return phase_specific_result("teardown", outcome)
 
         debug_print("{} teardown outcome: {}".format(fixture_name,
                                                      fixture_outcome(summary)))
