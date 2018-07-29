@@ -509,7 +509,7 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
         locals_all_frames.append(frame.tb_frame.f_locals)
         frame = frame.tb_next
     # debug_print("all frames locals: {}".format(locals_all_frames),
-    #              DEBUG["not-plugin"])
+    #              DEBUG["verify"])
 
     trace_complete = []
     for i, tb_level in enumerate(reversed(stack_trace)):
@@ -523,12 +523,12 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
 
     # Divide by 3 as each failure has 3 lines (list entries)
     debug_print("# of tracebacks: {}".format(old_div(len(trace_complete), 3)),
-                DEBUG["not-plugin"])
+                DEBUG["verify"])
     debug_print("length of locals: {}".format(len(locals_all_frames)),
-                DEBUG["not-plugin"])
-    if DEBUG["not-plugin"]:
+                DEBUG["verify"])
+    if DEBUG["verify"]:
         for line in trace_complete:
-            debug_print(line, DEBUG["not-plugin"])
+            debug_print(line, DEBUG["verify"])
 
     fixture_name = None
     fixture_scope = None
@@ -541,12 +541,12 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
                 fixture_name = item.argname
                 fixture_scope = item.scope
                 debug_print("scope for {} is {} [{}]".format(fixture_name,
-                            fixture_scope, i), DEBUG["not-plugin"])
+                            fixture_scope, i), DEBUG["verify"])
         if fixture_scope:
             break
 
     debug_print("saving: {}, {}".format(fixture_name, fixture_scope),
-                DEBUG["not-plugin"])
+                DEBUG["verify"])
 
     # TODO refactor the saved_results format- make it an object
     s_res = SessionStatus.verifications.saved_results

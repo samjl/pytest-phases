@@ -28,7 +28,6 @@ class ConfigOption(object):
 
 DEBUG = {"print-saved": DebugFunctionality("print saved", False),
          "verify": DebugFunctionality("verify", False),
-         "not-plugin": DebugFunctionality("not-plugin", False),
          "phases": DebugFunctionality("phases", False),
          "scopes": DebugFunctionality("scopes", False),
          "summary": DebugFunctionality("summary", False),
