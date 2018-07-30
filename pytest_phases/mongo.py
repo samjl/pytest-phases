@@ -35,6 +35,41 @@ def _dummy_method(*args, **kwargs):
     pass
 
 
+def find_one_document(collection, match):
+    try:
+        doc = collection.find_one(match)
+    except Exception as e:
+        print("Mongo Exception Caught: {}".format(str(e)))
+    else:
+        debug_print("Found document:", prettify=doc)
+
+
+def insert_document(collection, entry):
+    try:
+        res = collection.insert_one(entry)
+    except Exception as e:
+        print("Mongo Exception Caught: {}".format(str(e)))
+    else:
+        # res.acknowledged is true if write concern enabled
+        debug_print("Successfully inserted document with ID {}".format(
+            res.inserted_id))
+        find_one_document(collection, {"_id": res.inserted_id})
+
+
+def update_one_document(collection, match, update):
+    try:
+        # TODO add upsert option when required
+        res = collection.update_one(match, update)
+    except Exception as e:
+        print("Mongo Exception Caught: {}".format(str(e)))
+    else:
+        # res.acknowledged is true if write concern enabled
+        # matchedCount , modifiedCount, upsertedId
+        debug_print("Successfully updated document with ID {}".format(
+            res.inserted_id))
+        find_one_document(collection, {"_id": res.inserted_id})
+
+
 class MongoConnector(object):
     session_id = None  # FIXME move to class instance
     # hosts = None
@@ -75,16 +110,6 @@ class MongoConnector(object):
                 self.db.drop_collection("testlogs")
                 # self.db.drop_collection("tracebacks")
 
-    def insert_document(self, collection, entry):
-        try:
-            res = collection.insert_one(entry)
-        except Exception as e:
-            print(e)
-        else:
-            # res.acknowledged is true if write concern enabled
-            debug_print("Successfully inserted document "
-                        "with ID {}".format(res.inserted_id))
-
     def _get_session_id(self):
         res = self.db.sessioncounter.update_one({"_id": 0}, {"$inc": {
             "sessionId": 1}}, upsert=True)
@@ -124,7 +149,7 @@ class MongoConnector(object):
             modules=[],
             sessionFixtures=[]
         )
-        self.insert_document(self.db.sessions, session)
+        insert_document(self.db.sessions, session)
 
 
     # # DEBUG test_module for Aviat is the test ID
