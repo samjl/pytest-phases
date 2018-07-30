@@ -42,7 +42,6 @@ class MongoConnector(object):
 
     def __new__(cls, *args, **kwargs):
         if not args[0]:
-            # hosts is None or []
             print("mongoDB disabled")
             modify_methods = []
             for attr, obj in cls.__dict__.items():
@@ -76,33 +75,57 @@ class MongoConnector(object):
                 self.db.drop_collection("testlogs")
                 # self.db.drop_collection("tracebacks")
 
+    def insert_document(self, collection, entry):
+        try:
+            res = collection.insert_one(entry)
+        except Exception as e:
+            print(e)
+        else:
+            # res.acknowledged is true if write concern enabled
+            debug_print("Successfully inserted document "
+                        "with ID {}".format(res.inserted_id))
+
     def _get_session_id(self):
         res = self.db.sessioncounter.update_one({"_id": 0}, {"$inc": {
             "sessionId": 1}}, upsert=True)
         print(res)
         return self.db.sessioncounter.find_one({"_id": 0})["sessionId"]
 
-    def init_session(self):
-        # increment session counter in db
-        # and use it for the session entry
-        # "_id": session_id
+    def init_session(self, collected_tests):
+        # increment session counter in db and use it for the session entry
+        # "session_id": session_id (unique ObjectId for the _id)
         MongoConnector.session_id = self._get_session_id()
-        # debug_print("Initialize session {} in mongoDB".format(session_id),
-        #              "mongo")
-        print("Initialize session {} in mongoDB".format(
-            MongoConnector.session_id))
-        session = {
-            "sessionId": MongoConnector.session_id,
-            "executionOrder": [],
-            "status": "in-progress",
-            "result": "pending"
-            # TODO could also add the pytest config object
-            # TODO add collected items/test names
-        }
-        res = self.db.sessions.insert_one(session)
-        # status: "in progress/complete/failed"
-        # could keep track of currently executing test module, function etc.
-        pass
+        debug_print("Initialize test session {} in mongoDB"
+                    .format(MongoConnector.session_id))
+        session = dict(
+            devices=[],
+            testVersion=dict(
+                tag=None,
+                sha=None,
+                branch="master"
+            ),
+            summaryVerify="pending",  # will be a dict
+            summaryTests="pending",  # will be a dict
+            plan="ObjectId link",
+            sessionId=MongoConnector.session_id,
+            swBuild=dict(
+                branchName="",
+                buildNumber=1234,
+                type="ER",
+                minor="",
+                branchNumber="",
+                major="",
+                patch=""
+            ),
+            status="in-progress",
+            progress="pending",
+            expiry=False,
+            collected=collected_tests,
+            modules=[],
+            sessionFixtures=[]
+        )
+        self.insert_document(self.db.sessions, session)
+
 
     # # DEBUG test_module for Aviat is the test ID
     # def init_module(self, test_module, run):
