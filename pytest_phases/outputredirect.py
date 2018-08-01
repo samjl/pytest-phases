@@ -142,4 +142,4 @@ class LogOutputRedirection(object):
                 f.write("]\n")
 
         # Insert a log message to MongoDB
-        SessionStatus.mongo.insert_log_message(index, level, step, msg)
+        # SessionStatus.mongo.insert_log_message(index, level, step, msg)

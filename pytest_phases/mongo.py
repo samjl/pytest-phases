@@ -12,6 +12,7 @@ import datetime
 from future import standard_library
 from builtins import object, range
 from pymongo import MongoClient
+from bson.objectid import ObjectId
 from .loglevels import MIN_LEVEL, MAX_LEVEL, get_parents
 from .verify import SessionStatus
 from .common import DEBUG
@@ -97,6 +98,7 @@ class MongoConnector(object):
 
             self.session_oid = None
             self.module_oid = None
+            self.class_oid = None  # Generated embedded doc ObjectId
             self.test_oid = None
             self.fix_oid = None
             self.link_oid = None
@@ -118,6 +120,13 @@ class MongoConnector(object):
         return self.db.sessioncounter.find_one({"_id": 0})["sessionId"]
 
     def init_session(self, collected_tests):
+        """
+        Insert a new test session document.
+        Session document has links to all modules (and included
+        classes).
+        :param collected_tests: Pytest collected tests. In the format
+        module::class::test
+        """
         # increment session counter in db and use it for the session entry
         # "session_id": session_id (unique ObjectId for the _id)
         MongoConnector.session_id = self._get_session_id()
@@ -145,72 +154,199 @@ class MongoConnector(object):
             ),
             status="in-progress",
             progress="pending",
+            runOrder=[],
             expiry=False,
             collected=collected_tests,
             modules=[],
             sessionFixtures=[]
         )
-        insert_document(self.db.sessions, session)
+        self.session_oid = insert_document(self.db.sessions, session)
 
+    # Insert a new module document
+    # Update session document with link to new module
+    # If test is in a new class then add an embedded class document to the
+    # module
+    def init_module(self, test_module, new_class_name):
+        """
+        Insert a new module document.
+        Update the parent session document with ObjectId link to the
+        new module.
+        Insert a new embedded class to the module if required.
+        :param test_module: The tests parent (new) module.
+        :param new_class_name: The tests parent (new) class if it is a
+        class method. If None then test is a module test only.
+        """
+        module = dict(
+            sessionId=MongoConnector.session_id,
+            classes=[],
+            summaryVerify="pending",
+            summaryTests="pending",
+            moduleName=test_module,
+            status="in-progress",
+            moduleId=1,  # TODO Aviat get from test module name
+            moduleFixtures=[],
+            moduleTests=[]
+        )
+        if new_class_name:
+            # Test parent is a (new) class
+            # Add a new class
+            module["classes"].append(
+                self.create_embedded_class(new_class_name)
+            )
+        else:
+            # Test parent is the module
+            module["moduleTests"].append(self.test_oid)
+        self.module_oid = insert_document(self.db.modules, module)
 
-    # # DEBUG test_module for Aviat is the test ID
-    # def init_module(self, test_module, run):
-    #     # test run
-    #     # test ID
-    #
-    #     # log link
-    #     # overall result
-    #     # verifications - list of documents
-    #     # phases - phase results
-    #     # fixtures applied
-    #     pass
-
-    # Every test function - created at pytest setup
-    def init_test_result(self, i, test_function, test_fixtures):
-        # session_status = pytest.get_session_status()
-        # TODO check session_id is not None
-        log_link = {
-            "sessionId": MongoConnector.session_id,
-            "class": SessionStatus.class_name,
-            "module": SessionStatus.module,
-            "testFunction": SessionStatus.test_function,
-            "logIds": []
+    def push_class_to_module(self, new_class_name):
+        """
+        Push a class embedded document to the parent module document.
+        :param new_class_name: The name of the new class.
+        """
+        match = {"_id": self.module_oid}
+        update = {
+            "$push": {
+                "classes": self.create_embedded_class(new_class_name)
+            }
         }
-        res = self.db.loglinks.insert_one(log_link)
-        self.link_oid = res.inserted_id
+        update_one_document(self.db.modules, match, update)
 
-        test_result = {
-            "sessionId": MongoConnector.session_id,
-            "class": SessionStatus.class_name,
-            "module": SessionStatus.module,
-            "testFunction": test_function,  # SessionStatus.test_function,
-            # TODO add fixtures later
-            "fixtures": test_fixtures,  #
-            # SessionStatus.test_fixtures[SessionStatus.test_function],
-            "verifications": [],
-            # "setup" - update status as setup progresses and verifications
-            "setup": {"logStart": i},
-            # are saved
-            # "call"
-            # "teardown"
-            "logLink": self.link_oid,
-            # "result"  - single overall test result e.g. Warning,
-            # Setup Failure
-            "result": "pending",
-            # "summary" - All saved results summary Setup: P:, F: W: could
-            # be in "setup" field above
-            "summary": "pending",
-            "status": "in-progress",
-            # Any extra test specific data can be added on as needed basis
-            # e.g. dataplot data (link), protection switch times
+    def push_test_result_link(self, class_name):
+        """
+        Push the testresult ObjectId link to the parent module or class
+        document.
+        :param class_name: Current class name. If None the tests parent
+        is a module.
+        """
+        if class_name:
+            # Test parent is an existing class doc
+            match = {
+                "_id": self.module_oid,
+                "classes": {"$elemMatch": {"_id": self.class_oid}}
+            }
+            update = {"$push": {"classes.$.classTests": self.test_oid}}
+        else:
+            # Test parent is an existing module doc
+            match = {"_id": self.module_oid}
+            update = {"$push": {"moduleTests": self.test_oid}}
+        update_one_document(self.db.modules, match, update)
+
+    def create_embedded_class(self, class_name):
+        """
+        Create a new embedded document.
+        :param class_name: The (new) class name
+        :return: class document (dict) to be inserted to relevant module
+        doc
+        """
+        self.class_oid = ObjectId()
+        class_embed = dict(
+            _id=self.class_oid,
+            className=class_name,
+            summaryVerify="pending",
+            summaryTests="pending",
+            classFixtures=[],
+            classTests=[self.test_oid]
+        )
+        return class_embed
+
+    # TODO add log index
+    def init_test_result(self, test_function, test_fixtures, new_class_name,
+                         new_module_name):
+        """
+        Run for every test function @ pytest setup.
+        Insert testresult document.
+        Insert loglink document and add link to the testresult (in
+        initial insert above).
+        Update session document:
+            update progress: "module::class::test" (fixture setup adds
+            to this later),
+            append to the runOrder: "module::class::test",
+            add link to module (below) if required.
+        Insert module document if test is in a new module.
+        Insert embedded class document to module if test is in a new
+        class.
+        :param test_function:
+        :param test_fixtures:
+        :param new_class_name:
+        :param new_module_name:
+        :return:
+        """
+        if new_class_name:
+            class_name = new_class_name
+        else:
+            class_name = SessionStatus.class_name
+
+        if new_module_name:
+            module_name = new_module_name
+        else:
+            module_name = SessionStatus.module
+
+        # update session progress
+        progress = "{0[0]}::{0[1]}::{0[2]}".format(SessionStatus.run_order[-1])
+        match = {"_id": self.session_oid}
+        update = {
+            "$set": {"progress": progress},
+            "$push": {"runOrder": progress}
         }
-        res = self.db.testresults.insert_one(test_result)
-        self.test_oid = res.inserted_id
+        update_one_document(self.db.sessions, match, update)
 
-        return res.inserted_id
+        log_link = dict(
+            sessionId=MongoConnector.session_id,    # FIXME not in last ver
+            className=class_name,                   # FIXME not in last ver
+            moduleName=module_name,                 # FIXME not in last ver
+            testName=SessionStatus.test_function,   # FIXME not in last ver
+            logIds=[]
+        )
+        self.link_oid = insert_document(self.db.loglinks, log_link)
 
-        # init the loglink entry
+        test_result = dict(
+            sessionId=MongoConnector.session_id,
+            fucntionFixtures=[],  # links to fixture docs
+            moduleName=module_name,
+            className=class_name,
+            testName=test_function,
+            # List of Fixtures associated with the test
+            fixtures=test_fixtures,
+            swVersion={},
+            logLink=self.link_oid,
+            outcome=dict(
+                setup="in-progress",
+                call="pending",
+                teardown="pending",
+                overall="pending"
+            ),
+            callVerifications=[],
+            callSummary={}
+        )
+        self.test_oid = insert_document(self.db.testresults, test_result)
         # TODO enhancement embed logs until document becomes large?
+
+        if new_module_name:
+            # Init a new module (add class to module if req), add testresult
+            # link to module or class
+            self.init_module(module_name, new_class_name)
+        elif new_class_name:
+            # Add a new class to existing module, add testresult link to class
+            self.push_class_to_module(new_class_name)
+        else:
+            # If class: add testresult link to existing class
+            # else: add testresult to existing module
+            self.push_test_result_link(class_name)
+
+    def init_fixture(self, name, scope):
+        fixture = dict(
+            fixtureName=name,
+            setupSummary={},
+            lastTest=None,
+            teardownVerifications=[],
+            setupVerifications=[],
+            teardownSummary={},
+            scope=scope,
+            firstTest=None,
+            setupOutcome="pending",
+            teardownOutcome="pending"
+        )
+        self.fix_oid = insert_document(self.db.fixtures, fixture)
 
     def update_test_result(self, query, update):
         try:
@@ -291,7 +427,6 @@ class MongoConnector(object):
         # warning flag?
         # warning condition (optional)
         # warning message (optional)
-        pass
 
 
 def escape_html(text):

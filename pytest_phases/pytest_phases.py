@@ -191,32 +191,46 @@ def pytest_runtest_setup(item):
         item), DEBUG["scopes"])
 
     # SessionStatus.session = None
-    SessionStatus.class_name = None
-    SessionStatus.module = None
+    # SessionStatus.class_name = None # TODO Not sure why these were here
+    # SessionStatus.module = None     # and the effect of removing them?
 
-    def get_module_class(item):
-        # debug_print("{} type: {}".format(d.parent, type(d.parent)),
-        #              DEBUG["summary"])
+    def get_module_class(item, new_parents):
+        """
+        Recurse through the test's (item) parents and set the current
+        module and class.
+        :param item: The pytest test item.
+        :param new_parents: Dictionary of new parents (class and
+        module).
+        :return: A dictionary containing module and class names if they
+        are new.
+        """
         if isinstance(item.parent, Class):
             debug_print("Class is {}".format(item.parent.name),
-                        DEBUG["scopes"])
+                        DEBUG["phases"])
+            if SessionStatus.class_name != item.parent.name:
+                new_parents["class"] = item.parent.name
             SessionStatus.class_name = item.parent.name
         if isinstance(item.parent, Module):
-            debug_print("Module is {}".format(item.parent.name),
-                        DEBUG["scopes"])
+            debug_print("Module is {} ({})".format(item.parent.name,
+                                                   SessionStatus.module),
+                        DEBUG["phases"])
+            if SessionStatus.module != item.parent.name:
+                new_parents["module"] = item.parent.name
             SessionStatus.module = item.parent.name
         # if isinstance(item.parent, Session):
         #     debug_print("Session is {}".format(item.parent.name),
         #                  DEBUG["scopes"])
         #     SessionStatus.session = item.parent.name
-            return
+            # Module is highest level parent currently supported
+            return new_parents
         next_item = item.parent
         if "parent" in list(next_item.__dict__.keys()):
             if next_item.parent:
-                get_module_class(next_item)
-        else:
-            return
-    get_module_class(item)
+                get_module_class(next_item, new_parents)
+        return new_parents
+    parents = get_module_class(item, {"class": None, "module": None})
+    debug_print("Test parents (None if same as previous test):",
+                DEBUG["phases"], prettify=parents)
 
     # Set test session globals
     # Run order - tuples of (parent module, test function name)
@@ -234,7 +248,8 @@ def pytest_runtest_setup(item):
 
     current_log_index = get_current_index()
     SessionStatus.test_object_id = SessionStatus.mongo.init_test_result(
-        current_log_index, item.name, item.fixturenames[:-1])
+        item.name, item.fixturenames[:-1], parents["class"], parents["module"]
+    )
 
     outcome = yield
     debug_print("Test SETUP - Complete {}, outcome: {}".format(item, outcome),
@@ -281,9 +296,9 @@ def pytest_fixture_setup(fixturedef, request):
     SessionStatus.test_fixtures[SessionStatus.test_function] = \
         list(SessionStatus.active_setups)
     SessionStatus.exec_func_fix = setup_args
-    SessionStatus.mongo.update_test_result(
-        {"_id": SessionStatus.test_object_id},
-        {"$set": {"fixtures": SessionStatus.test_fixtures[SessionStatus.test_function]}})
+    # SessionStatus.mongo.update_test_result(
+    #     {"_id": SessionStatus.test_object_id},
+    #     {"$set": {"fixtures": SessionStatus.test_fixtures[SessionStatus.test_function]}})
 
     res = yield
     debug_print("Fixture setup (after yield): {}".format(res),
@@ -322,8 +337,9 @@ def pytest_fixture_post_finalizer(fixturedef, request):
                 DEBUG["scopes"])
     if exc_info:
         # An exception was raised by the fixture setup
-        debug_print("{}".format(exc_info[0].__dict__), DEBUG["scopes"])
-        if exc_info[0] not in (WarningException, VerificationException):
+        # debug_print("{}".format(exc_info[0].__dict__), DEBUG["scopes"])
+        if exc_info[0] not in (WarningException, VerificationException, None):
+            # Cover case of exc_info being (None, None, None)
             # Detect a regular assertion (assert) raised by the teardown phase.
             # Save it so it is printed in the results table.
             _save_non_verify_exc(exc_info)
@@ -364,16 +380,16 @@ def pytest_pyfunc_call(pyfuncitem):
     SessionStatus.exec_func_fix = pyfuncitem.name
     SessionStatus.test_function = pyfuncitem.name
     # Update mongo test result
-    SessionStatus.mongo.update_test_result(
-        {"_id": SessionStatus.test_object_id},
-        {"$set": {"testFunction": SessionStatus.test_function}})
+    # SessionStatus.mongo.update_test_result(
+    #     {"_id": SessionStatus.test_object_id},
+    #     {"$set": {"testFunction": SessionStatus.test_function}})
 
     i = get_current_index()
     # FIXME keep track of current test ObjectId or find it every time?
     query = {"_id": SessionStatus.test_object_id}
     update = {"$set": {"call": {"logStart": i}}}
     debug_print("Updating oid {}".format(query), DEBUG["mongo"])
-    SessionStatus.mongo.update_test_result(query, update)
+    # SessionStatus.mongo.update_test_result(query, update)
 
     outcome = yield
     debug_print("CALL - Completed {}, outcome {}".format(pyfuncitem, outcome),
@@ -410,7 +426,7 @@ def pytest_runtest_teardown(item, nextitem):
     query = {"_id": SessionStatus.test_object_id}
     update = {"$set": {"teardown": {"logStart": i}}}
     debug_print("Updating oid {}".format(query), DEBUG["mongo"])
-    SessionStatus.mongo.update_test_result(query, update)
+    # SessionStatus.mongo.update_test_result(query, update)
 
     outcome = yield
     debug_print("Test TEARDOWN - completed {}, outcome: {}".format(item,
@@ -473,7 +489,7 @@ def _raise_existing_setup_error():
 def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
     exc_msg = str(raised_exc[1]).strip().replace("\n", " ")
     stack_trace = traceback.extract_tb(raised_exc[2])
-    # DO NOT RELY ON THIS METHOD BEING CONSISTENT BETWEEN PYTEST VERSION
+    # DO NOT RELY ON THIS METHOD BEING CONSISTENT BETWEEN PYTEST VERSIONS
     # Try to extract a pytest failure method from the traceback type name
     try:
         trace_name = raised_exc[0].__name__.lower()
