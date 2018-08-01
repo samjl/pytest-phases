@@ -111,7 +111,8 @@ class MongoConnector(object):
                 self.db.drop_collection("testresults")
                 self.db.drop_collection("loglinks")
                 self.db.drop_collection("testlogs")
-                # self.db.drop_collection("tracebacks")
+                self.db.drop_collection("verifications")
+                self.db.drop_collection("tracebacks")
 
     def _get_session_id(self):
         res = self.db.sessioncounter.update_one({"_id": 0}, {"$inc": {
@@ -356,12 +357,20 @@ class MongoConnector(object):
             raise
         print(res)
 
-    # Insert the message to the testlogs collection
-    # and insert the message ObjectId to the list in the corresponding
-    # testloglinks item (add if required {index=1})
-    # timestamp in ObjectId is only to the nearest second so datetime
-    # generated time is inserted
     def insert_log_message(self, index, level, step, message):
+        """
+        Insert a log mesasge to the testlogs collection. Insert the
+        message ObjectId to the list in the corresponding testloglinks
+        item.
+        Note: ObjectId is only to the nearest second so datetime
+        generated time is inserted.
+        :param index: The message index (running index of test module
+        logs)
+        :param level: The log level.
+        :param step: The current log step for the assigned level.
+        :param message: The log message.
+        :return:
+        """
         # TODO add? SessionStatus.class_name, SessionStatus.module,
         # SessionStatus.test_function, SessionStatus.test_fixtures
         msg = dict(
@@ -375,6 +384,7 @@ class MongoConnector(object):
             timestamp=datetime.datetime.utcnow(),
             testResult=self.test_oid
         )
+        # Insert the log message
         res = self.db.testlogs.insert_one(msg)
         # Update self.db.loglinks with the ObjectId of this message entry
         self.db.testloglinks.update_one({"_id": self.link_oid},
@@ -393,18 +403,33 @@ class MongoConnector(object):
         for i in range(level-MIN_LEVEL, len(MongoConnector.parents)-1):
             MongoConnector.parents[i] = "-"
 
-    # Insert a saved verification to the relevant testresults document
-    # Message and log link are added independently
-    # Update relevant summary entry (fixture.setupSummary or
-    # .teardownSummary, testresult.callSummary, moduleClass.summaryVerify,
-    # module.summaryVerify, session.summaryVerify
     def insert_verification(self, saved_result):
+        """
+        Insert a saved verification and add its ObjectId to the relevant
+        testresult or fixture (setup or teardown) document.
+        Update relevant summary entry (fixture.setupSummary.
+        .teardownSummary, testresult.callSummary,
+        moduleClass.summaryVerify, module.summaryVerify or
+        session.summaryVerify.
+        Note: Message and log link are added independently.
+        :param saved_result: The saved verification (pass/warn/fail) or
+        caught assertion.
+        """
         if saved_result.traceback_link:
+            # Traceback doc currently mirrors data in the verification
+            # doc.
+            # TODO increase the depth of the traceback here, reduce
+            # the data in the verification or remove duplicate
+            # data/collection.
+            # Doesn't need the originally raised traceback (
+            # saved_result.traceback_link.traceback) as it is raised
+            # from the plugin rather than the original source.
             traceback = dict(
-                type=saved_result.traceback_link.exc_type,
-                traceback=saved_result.traceback_link.exc_traceback,
-                formatted=saved_result.traceback_link.formatted_traceback,
-                # TODO not required: raised, result_link?
+                type=saved_result.traceback_link.exc_type.__name__,
+                location=saved_result.traceback_link.formatted_traceback[0],
+                locals=["{}:{}".format(k, v) for k, v in saved_result
+                        .traceback_link.formatted_traceback[1].items()],
+                code=saved_result.traceback_link.formatted_traceback[2:]
             )
             verify_oid = insert_document(self.db.tracebacks, traceback)
         else:
@@ -415,7 +440,12 @@ class MongoConnector(object):
             verifyMsg=saved_result.msg,
             status=saved_result.status,
             type=saved_result.type_code,
-            source=saved_result.source,
+            source=dict(
+                code=saved_result.source["code"],
+                locals=["{}:{}".format(k, v) for k, v in saved_result.source[
+                    "locals"].items()],
+                location=saved_result.source["module-function-line"]
+            ),
             fullTraceback=verify_oid,
             immediate=saved_result.raise_immediately,
             moduleName=saved_result.module,  # could use SessionStatus.module
@@ -427,7 +457,11 @@ class MongoConnector(object):
             scope=saved_result.scope,
             activeSetups=saved_result.active
         )
-        insert_document(self.db.verifications, verify)
+        res = insert_document(self.db.verifications, verify)
+
+        # TODO Add the link to the verification doc to the corresponding
+        # parent document. This could be a testresult (call phase) or
+        # fixture (setup or teardown phase).
 
         # TODO to add to the saved Result object
         # fail condition

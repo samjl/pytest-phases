@@ -508,10 +508,12 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
         failure_traceback = s_tb[-1]
     else:
         failure_traceback = None
-    s_res.append(Result(msg, status, type_code, fixture_scope,
-                        source_function, source_call, raise_immediately,
-                        source_locals=source_locals,
-                        fail_traceback_link=failure_traceback))
+    result = Result(msg, status, type_code, fixture_scope,
+                    source_function, source_call, raise_immediately,
+                    source_locals=source_locals,
+                    fail_traceback_link=failure_traceback)
+    s_res.append(result)
+    SessionStatus.mongo.insert_verification(result)
     if type_code == "F" or type_code == "W":
         s_tb[-1].result_link = s_res[-1]
 

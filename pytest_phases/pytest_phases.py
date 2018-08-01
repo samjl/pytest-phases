@@ -580,11 +580,13 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
         module_function_line = trace_complete[-3]
     else:
         module_function_line = trace_complete[-2]
-    s_res.append(Result(exc_msg, failure_type, exc_type, fixture_scope,
-                        module_function_line, [trace_complete[-1]],
-                        True, source_locals=locals_all_frames[-1],
-                        fail_traceback_link=s_tb[-1],
-                        use_prev_teardown=use_prev_teardown))
+    result = Result(exc_msg, failure_type, exc_type, fixture_scope,
+                    module_function_line, [trace_complete[-1]],
+                    True, source_locals=locals_all_frames[-1],
+                    fail_traceback_link=s_tb[-1],
+                    use_prev_teardown=use_prev_teardown)
+    s_res.append(result)
+    SessionStatus.mongo.insert_verification(result)
     s_tb[-1].result_link = s_res[-1]
 
 
