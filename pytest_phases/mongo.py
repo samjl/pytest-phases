@@ -359,30 +359,22 @@ class MongoConnector(object):
     # Insert the message to the testlogs collection
     # and insert the message ObjectId to the list in the corresponding
     # testloglinks item (add if required {index=1})
-    # TODO timestamp in ObjectId is only to the nearest second
+    # timestamp in ObjectId is only to the nearest second so datetime
+    # generated time is inserted
     def insert_log_message(self, index, level, step, message):
-        # test run
-        # test ID
-
-        # SessionStatus.class_name
-        # SessionStatus.module
-        # SessionStatus.test_function
-        # SessionStatus.test_fixtures
-
-        # code source
-        # debug
-
-        msg = {
-            "index": index,
-            "level": level,
-            "step": step,
-            "message": escape_html(message),
-            "parents": MongoConnector.parents[:level - MIN_LEVEL - 1],
-            "parentIndices": get_parents(),
-            "numOfChildren": 0,
-            "timestamp": datetime.datetime.utcnow(),
-            "testResult": self.test_oid
-        }
+        # TODO add? SessionStatus.class_name, SessionStatus.module,
+        # SessionStatus.test_function, SessionStatus.test_fixtures
+        msg = dict(
+            index=index,
+            level=level,
+            step=step,
+            message=escape_html(message),
+            parents=MongoConnector.parents[:level - MIN_LEVEL - 1],
+            parentIndices=get_parents(),
+            numOfChildren=0,
+            timestamp=datetime.datetime.utcnow(),
+            testResult=self.test_oid
+        )
         res = self.db.testlogs.insert_one(msg)
         # Update self.db.loglinks with the ObjectId of this message entry
         self.db.testloglinks.update_one({"_id": self.link_oid},
@@ -401,25 +393,41 @@ class MongoConnector(object):
         for i in range(level-MIN_LEVEL, len(MongoConnector.parents)-1):
             MongoConnector.parents[i] = "-"
 
-    # Insert a saved verification to the relevant testresults entry
-    # and insert the log message and link to testlogs and testloglinks
-    # respectively
-    def insert_verification(self):
-        # Retrieved directly from the Result object:
-        # step - links back to the printed log message
-        # message
-        # status (FAIL, WARNING, PASS)
-        # TRACKING INFO:
-        # source - function, code line, local vars
-        # class name
-        # module
-        # phase
-        # test function
-        # fixture name
+    # Insert a saved verification to the relevant testresults document
+    # Message and log link are added independently
+    # Update relevant summary entry (fixture.setupSummary or
+    # .teardownSummary, testresult.callSummary, moduleClass.summaryVerify,
+    # module.summaryVerify, session.summaryVerify
+    def insert_verification(self, saved_result):
+        if saved_result.traceback_link:
+            traceback = dict(
+                type=saved_result.traceback_link.exc_type,
+                traceback=saved_result.traceback_link.exc_traceback,
+                formatted=saved_result.traceback_link.formatted_traceback,
+                # TODO not required: raised, result_link?
+            )
+            verify_oid = insert_document(self.db.tracebacks, traceback)
+        else:
+            verify_oid = None
 
-        # debug - flags: Result.raise_immediately
-
-        # traceback
+        verify = dict(
+            level1Msg=saved_result.step,
+            verifyMsg=saved_result.msg,
+            status=saved_result.status,
+            type=saved_result.type_code,
+            source=saved_result.source,
+            fullTraceback=verify_oid,
+            immediate=saved_result.raise_immediately,
+            moduleName=saved_result.module,  # could use SessionStatus.module
+            className=saved_result.class_name,  # SessionStatus.class_name
+            testName=saved_result.test_function,  # SessionStatus.test_function
+            # TODO add testLink
+            fixtureName=saved_result.fixture_name,
+            phase=saved_result.phase,
+            scope=saved_result.scope,
+            activeSetups=saved_result.active
+        )
+        insert_document(self.db.verifications, verify)
 
         # TODO to add to the saved Result object
         # fail condition
