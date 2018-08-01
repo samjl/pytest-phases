@@ -54,6 +54,7 @@ def insert_document(collection, entry):
         debug_print("Successfully inserted document with ID {}".format(
             res.inserted_id))
         find_one_document(collection, {"_id": res.inserted_id})
+        return res.inserted_id
 
 
 def update_one_document(collection, match, update):
@@ -65,9 +66,9 @@ def update_one_document(collection, match, update):
     else:
         # res.acknowledged is true if write concern enabled
         # matchedCount , modifiedCount, upsertedId
-        debug_print("Successfully updated document with ID {}".format(
-            res.inserted_id))
-        find_one_document(collection, {"_id": res.inserted_id})
+        debug_print("Successfully matched {} and updated {} document(s)"
+                    .format(res.matched_count, res.modified_count))
+        find_one_document(collection, match)
 
 
 class MongoConnector(object):
