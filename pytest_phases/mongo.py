@@ -295,7 +295,7 @@ class MongoConnector(object):
             sessionId=MongoConnector.session_id,    # FIXME not in last ver
             className=class_name,                   # FIXME not in last ver
             moduleName=module_name,                 # FIXME not in last ver
-            testName=SessionStatus.test_function,   # FIXME not in last ver
+            testName=test_function,                 # FIXME not in last ver
             logIds=[]
         )
         self.link_oid = insert_document(self.db.loglinks, log_link)
@@ -360,8 +360,8 @@ class MongoConnector(object):
     def insert_log_message(self, index, level, step, message):
         """
         Insert a log mesasge to the testlogs collection. Insert the
-        message ObjectId to the list in the corresponding testloglinks
-        item.
+        message ObjectId to the list in the corresponding loglinks
+        document.
         Note: ObjectId is only to the nearest second so datetime
         generated time is inserted.
         :param index: The message index (running index of test module
@@ -387,8 +387,8 @@ class MongoConnector(object):
         # Insert the log message
         res = self.db.testlogs.insert_one(msg)
         # Update self.db.loglinks with the ObjectId of this message entry
-        self.db.testloglinks.update_one({"_id": self.link_oid},
-                                        {"$push": {"logIds": res.inserted_id}})
+        self.db.loglinks.update_one({"_id": self.link_oid},
+                                    {"$push": {"logIds": res.inserted_id}})
         # Update parent entries in the db: increment the number of children
         for parent_id in MongoConnector.parents[:level - MIN_LEVEL - 1]:
             self.db.testlogs.update_one({"_id": parent_id},
