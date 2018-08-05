@@ -117,7 +117,6 @@ class MongoConnector(object):
     def _get_session_id(self):
         res = self.db.sessioncounter.update_one({"_id": 0}, {"$inc": {
             "sessionId": 1}}, upsert=True)
-        print(res)
         return self.db.sessioncounter.find_one({"_id": 0})["sessionId"]
 
     def init_session(self, collected_tests):

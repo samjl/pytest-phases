@@ -154,8 +154,6 @@ def pytest_collection_modifyitems(session, config, items):
     debug_print(session, DEBUG["mongo"])
     debug_print(config, DEBUG["mongo"])
     debug_print(items, DEBUG["mongo"])
-    # FIXME could do this earlier
-    print(items[0].__dict__)
     # just the test name - .name
     # Could change this to include class and module - ._nodeid
     # Could add fixtures - .fixturenames (probably overkill)
