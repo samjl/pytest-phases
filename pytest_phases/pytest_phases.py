@@ -122,8 +122,9 @@ def pytest_configure(config):
     parser.read(os.path.join(config_path, "mongo.cfg"))
     mongo_hosts = parser.get("general", "hosts").split(",")
     mongo_enable = parser.getboolean("general", "enable")
+    mongo_db = parser.get("general", "db")
 
-    SessionStatus.mongo = MongoConnector(mongo_enable, mongo_hosts)
+    SessionStatus.mongo = MongoConnector(mongo_enable, mongo_hosts, mongo_db)
 
     if not CONFIG["no-redirect"].value:
         debug_print("Perform output redirection", DEBUG["output-redirect"])
