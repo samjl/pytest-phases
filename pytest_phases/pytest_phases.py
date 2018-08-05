@@ -247,9 +247,12 @@ def pytest_runtest_setup(item):
     SessionStatus.test_fixtures[item.name] = list(SessionStatus.active_setups)
 
     current_log_index = get_current_index()
+    # No logs are associated with the test until the testresult and
+    # loglink documents are inserted below
     SessionStatus.test_object_id = SessionStatus.mongo.init_test_result(
         item.name, item.fixturenames[:-1], parents["class"], parents["module"]
     )
+    pytest.log.high_level_step("STARTING TEST {}".format(item.name))
 
     outcome = yield
     debug_print("Test SETUP - Complete {}, outcome: {}".format(item, outcome),
