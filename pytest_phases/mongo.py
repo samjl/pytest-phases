@@ -423,12 +423,17 @@ class MongoConnector(object):
             # Doesn't need the originally raised traceback (
             # saved_result.traceback_link.traceback) as it is raised
             # from the plugin rather than the original source.
+            tb = []
+            for level in saved_result.traceback_link.formatted_traceback:
+                tb.append(dict(
+                    location=level['location'],
+                    code=level['code'],
+                    locals=["{}:{}".format(k, v) for k, v in level['locals']
+                            .items()]
+                ))
             traceback = dict(
                 type=saved_result.traceback_link.exc_type.__name__,
-                location=saved_result.traceback_link.formatted_traceback[0],
-                locals=["{}:{}".format(k, v) for k, v in saved_result
-                        .traceback_link.formatted_traceback[1].items()],
-                code=saved_result.traceback_link.formatted_traceback[2:]
+                tb=tb
             )
             verify_oid = insert_document(self.db.tracebacks, traceback)
         else:

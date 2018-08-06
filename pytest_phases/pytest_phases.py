@@ -533,18 +533,26 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
         # TODO enhancement: remove keys starting with "@py_"
         locals_all_frames.append(frame.tb_frame.f_locals)
         frame = frame.tb_next
-    # debug_print("all frames locals: {}".format(locals_all_frames),
-    #              DEBUG["verify"])
+    debug_print("all frames locals: {}".format(locals_all_frames),
+                 DEBUG["verify"])
 
     trace_complete = []
     for i, tb_level in enumerate(reversed(stack_trace)):
-        if CONFIG["traceback-stops-at-test-functions"].value\
-                and trace_end_detected(tb_level[3]):
+        level_detail = dict(
+            location="",  # module::line#::function
+            # TODO is a dict required here or is it always converted to str?
+            locals=dict(),  # dictionary of locals
+            code=[]  # source code (multiple lines possible in future
+            # enhancement - for saved verifications ONLY)
+        )
+        if (CONFIG["traceback-stops-at-test-functions"].value and
+                trace_end_detected(tb_level[3])):
             break
-        trace_complete.insert(0, ">   {0[3]}".format(tb_level))
+        level_detail['code'].append(">   {0[3]}".format(tb_level))
         if CONFIG["include-all-local-vars"].value:
-            trace_complete.insert(0, locals_all_frames[-(i+1)])
-        trace_complete.insert(0, "{0[0]}:{0[1]}:{0[2]}".format(tb_level))
+            level_detail['locals'] = locals_all_frames[-(i+1)]
+        level_detail['location'] = "{0[0]}:{0[1]}:{0[2]}".format(tb_level)
+        trace_complete.insert(0, level_detail)
 
     # Divide by 3 as each failure has 3 lines (list entries)
     debug_print("# of tracebacks: {}".format(old_div(len(trace_complete), 3)),
@@ -588,8 +596,8 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
                     fail_traceback_link=s_tb[-1],
                     use_prev_teardown=use_prev_teardown)
     s_res.append(result)
-    SessionStatus.mongo.insert_verification(result)
     s_tb[-1].result_link = s_res[-1]
+    SessionStatus.mongo.insert_verification(result)
 
 
 def _raise_first_saved_exc_type(type_to_raise):
@@ -672,8 +680,13 @@ def pytest_terminal_summary(terminalreporter):
         pytest.log.high_level_step("Saved tracebacks")
     for i, saved_tb in enumerate(saved_tracebacks):
         debug_print("Traceback {}".format(i), DEBUG["summary"])
-        for line in saved_tb.formatted_traceback:
-            pytest.log.step(line)
+        for level in saved_tb.formatted_traceback:
+            pytest.log.step(level['location'])
+            # FIXME remove keys starting @py
+            pytest.log.step(
+                ["{}: {}".format(k, v) for k, v in level['locals'].items()]
+            )
+            pytest.log.step("\n".join(level['code']))
         pytest.log.step("{}: {}".format(saved_tb.exc_type.__name__,
                                         saved_tb.result_link.msg))
 

@@ -389,11 +389,12 @@ def _get_complete_traceback(stack, start_depth, stop_at_test,
                                          full_method_trace)
         if calling_func:
             source_function, source_locals, source_call = calling_func
-            tb_new = [source_function]
-            if source_locals:
-                tb_new.append(source_locals)
-            tb_new.extend(source_call)
-            tb[0:0] = tb_new
+            tb_new = dict(
+                location=source_function,
+                locals=source_locals,
+                code=source_call
+            )
+            tb.insert(0, tb_new)
         else:
             # Failed to retrieve calling traceback
             break  # FIXME should this be continue?
@@ -493,6 +494,12 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
     if source_locals:
         tb_depth_1.append(source_locals)
     tb_depth_1.extend(source_call)
+
+    trace_complete = [dict(
+        location=source_function,
+        locals=source_locals,
+        code=source_call
+    )]
 
     depth += 1
     s_res = SessionStatus.verifications.saved_results
