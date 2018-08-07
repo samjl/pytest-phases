@@ -415,7 +415,7 @@ def _get_calling_func(stack, depth, stop_at_test, full_method_trace):
             return
         call_line_number = stack[depth][2]
         module_line_parent = "{0[1]}:{0[2]}:{0[3]}".format(stack[depth])
-        calling_frame_locals = ""
+        calling_frame_locals = {}
         if CONFIG["include-verify-local-vars"].value\
                 or CONFIG["include-all-local-vars"].value:
             try:
@@ -500,7 +500,6 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
         locals=source_locals,
         code=source_call
     )]
-
     depth += 1
     s_res = SessionStatus.verifications.saved_results
     type_code = status[0]
@@ -611,9 +610,10 @@ def _print_result(result, traceback, key_val_lengths, column_key_order):
     if traceback:
         for level in traceback.formatted_traceback:
             pytest.log.step(level['location'], log_level=3)
-            local_vars = ["{}: {}".format(k, v) for k, v in level[
-                'locals'].items() if not k.startswith("@py_")]
-            pytest.log.step(", ".join(local_vars), log_level=3)
+            if level['locals']:
+                local_vars = ["{}: {}".format(k, v) for k, v in level[
+                    'locals'].items() if not k.startswith("@py_")]
+                pytest.log.step(", ".join(local_vars), log_level=3)
             pytest.log.step("\n".join(level['code']), log_level=3)
         pytest.log.step("{}: {}".format(traceback.exc_type.__name__,
                                         traceback.result_link.msg),

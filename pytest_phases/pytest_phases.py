@@ -587,13 +587,10 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
     s_tb = SessionStatus.verifications.saved_tracebacks
     s_tb.append(FailureTraceback(raised_exc[0], raised_exc[2], trace_complete,
                                  raised=True))
-    if CONFIG["include-all-local-vars"].value:
-        module_function_line = trace_complete[-3]
-    else:
-        module_function_line = trace_complete[-2]
+    module_function_line = trace_complete[-1]["location"]
     result = Result(exc_msg, failure_type, exc_type, fixture_scope,
-                    module_function_line, [trace_complete[-1]],
-                    True, source_locals=locals_all_frames[-1],
+                    module_function_line, trace_complete[-1]["code"],
+                    True, source_locals=trace_complete[-1]["locals"],
                     fail_traceback_link=s_tb[-1],
                     use_prev_teardown=use_prev_teardown)
     s_res.append(result)
