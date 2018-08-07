@@ -508,7 +508,7 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
         # Types processed by this function are "P", "F" and "W"
         trace_complete = _get_complete_traceback(stack, depth, stop_at_test,
                                                  full_method_trace,
-                                                 tb=tb_depth_1)
+                                                 tb=trace_complete)
 
         s_tb = SessionStatus.verifications.saved_tracebacks
         s_tb.append(FailureTraceback(exc_type, exc_tb, trace_complete))
