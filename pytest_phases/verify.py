@@ -575,8 +575,10 @@ def print_saved_results(column_key_order="Step"):
                        DEBUG["print-saved"])
 
     to_print = []
+    tb_links = []
     for saved_result in SessionStatus.verifications.saved_results:
         to_print.append(saved_result.formatted_dict())
+        tb_links.append(saved_result.traceback_link)
 
     key_val_lengths = {}
     if len(to_print) > 0:
@@ -585,13 +587,13 @@ def print_saved_results(column_key_order="Step"):
         pytest.log.high_level_step("Saved results")
         _print_headings(to_print[0], headings, key_val_lengths,
                         column_key_order)
-        for result in to_print:
-            _print_result(result, key_val_lengths, column_key_order)
-        print("Extra fields: raise_immediately.raised")
+        for i, result in enumerate(to_print):
+            _print_result(result, tb_links[i], key_val_lengths,
+                          column_key_order)
 
 
-def _print_result(result, key_val_lengths, column_key_order):
-    # Print a table row for a single saved result.
+def _print_result(result, traceback, key_val_lengths, column_key_order):
+    # Print a table row at log level 2 for a single saved result.
     line = ""
     for key in column_key_order:
         # Print values in the order defined by column_key_order.
@@ -604,9 +606,18 @@ def _print_result(result, key_val_lengths, column_key_order):
             val = result[key]
             line += '| {0:^{width}} '.format(str(val), width=length)
     line += "|"
-    # pytest.log.detail_step(line)
-    # DEBUG
-    print(line)
+    pytest.log.detail_step(line)
+    # If result has a linked traceback object then print it at log level 3.
+    if traceback:
+        for level in traceback.formatted_traceback:
+            pytest.log.step(level['location'], log_level=3)
+            local_vars = ["{}: {}".format(k, v) for k, v in level[
+                'locals'].items() if not k.startswith("@py_")]
+            pytest.log.step(", ".join(local_vars), log_level=3)
+            pytest.log.step("\n".join(level['code']), log_level=3)
+        pytest.log.step("{}: {}".format(traceback.exc_type.__name__,
+                                        traceback.result_link.msg),
+                        log_level=3)
 
 
 def _get_val_lengths(saved_results, key_val_lengths):

@@ -674,21 +674,6 @@ def pytest_terminal_summary(terminalreporter):
     # verifications.
     # Results table
     print_saved_results()
-    # Saved trace back information
-    saved_tracebacks = SessionStatus.verifications.saved_tracebacks
-    if saved_tracebacks:
-        pytest.log.high_level_step("Saved tracebacks")
-    for i, saved_tb in enumerate(saved_tracebacks):
-        debug_print("Traceback {}".format(i), DEBUG["summary"])
-        for level in saved_tb.formatted_traceback:
-            pytest.log.step(level['location'])
-            # FIXME remove keys starting @py
-            pytest.log.step(
-                ["{}: {}".format(k, v) for k, v in level['locals'].items()]
-            )
-            pytest.log.step("\n".join(level['code']))
-        pytest.log.step("{}: {}".format(saved_tb.exc_type.__name__,
-                                        saved_tb.result_link.msg))
 
     debug_print("Test function fixture dependencies:", DEBUG["summary"])
     for test_name, setup_fixtures in SessionStatus.test_fixtures.items():
