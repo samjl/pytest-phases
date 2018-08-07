@@ -491,6 +491,7 @@ def _raise_existing_setup_error():
 def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
     exc_msg = str(raised_exc[1]).strip().replace("\n", " ")
     stack_trace = traceback.extract_tb(raised_exc[2])
+
     # DO NOT RELY ON THIS METHOD BEING CONSISTENT BETWEEN PYTEST VERSIONS
     # Try to extract a pytest failure method from the traceback type name
     try:
@@ -816,46 +817,51 @@ def pytest_terminal_summary(terminalreporter):
         else:
             summary_results[test_result["overall"]] += 1
 
-    # TODO format this summary table nicely
     for test_function, fixture_results in test_results.items():
-        debug_print("*********************************************************"
-                    "********************************************************",
-                    DEBUG["summary"])
+        pytest.log.high_level_step("Summary of results for test {}, overall: "
+                                   "{}".format(test_function,
+                                               fixture_results["overall"]))
         for phase in ("setup", "call", "teardown"):
             if phase == "setup":
+                pytest.log.detail_step(
+                    "Setup ({0}), overall: {1[result]}, saved results: "
+                    "{1[saved]}".format(test_function,
+                                        fixture_results[phase]["overall"]))
                 for scope in ("module", "class", "function"):
                     for fixture_name, results in fixture_results[phase][scope]\
                             .items():
                         results_id = [hex(id(x))[-4:] for x in results[0:-1]]
-                        print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s:<40}"
-                              "{5!s}".format(test_function, phase, scope,
-                                             fixture_name, results[-1],
-                                             results_id))
+                        pytest.log.step("Fixture {} (scope: {}) saved results:"
+                                        " {}".format(fixture_name, scope,
+                                                    results[-1]),
+                                        log_level=3)
+                        debug_print(results_id, DEBUG["summary"])
             elif phase == "teardown":
+                pytest.log.detail_step(
+                    "Teardown ({0}), overall: {1[result]}, saved results: "
+                    "{1[saved]}".format(test_function,
+                                        fixture_results[phase]["overall"]))
                 for scope in ("function", "class", "module"):
                     for fixture_name, results in fixture_results[phase][scope]\
                             .items():
                         results_id = [hex(id(x))[-4:] for x in results[0:-1]]
-                        print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s:<40}"
-                              "{5!s}".format(test_function, phase, scope,
-                                             fixture_name, results[-1],
-                                             results_id))
+                        pytest.log.step("Fixture {} (scope: {}) saved results:"
+                                        " {}".format(fixture_name, scope,
+                                                    results[-1]),
+                                        log_level=3)
+                        debug_print(results_id, DEBUG["summary"])
             elif phase == "call":
+                pytest.log.detail_step(
+                    "Call (test function {0}), overall: {1[result]}, saved "
+                    "results: {1[saved]}".format(test_function,
+                                                 fixture_results[phase][
+                                                   "overall"]))
                 results_id = [hex(id(x))[-4:] for x in fixture_results[phase][
                     "results"]]
-                print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s:<40}{5!s}"
-                      .format(test_function, phase, "overall", "saved results",
-                              "", results_id))
+                debug_print(results_id, DEBUG["summary"])
             if "overall" in fixture_results[phase]:
-                print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s}".format(
-                      test_function, phase, "overall", "-",
-                      fixture_results[phase]["overall"]))
-        print("{0!s:<20}{1!s:<10}{2!s:<10}{3!s:<25}{4!s}".format(test_function,
-              "overall", "-", "-", fixture_results["overall"]))
-
-    debug_print("*********************************************************"
-                "********************************************************",
-                DEBUG["summary"])
+                debug_print("Phase overall: {}".format(
+                    fixture_results[phase]["overall"]), DEBUG["summary"])
 
     # Print the expected fail, unexpected pass and skip reports exactly as
     # pytest does.
@@ -870,18 +876,20 @@ def pytest_terminal_summary(terminalreporter):
         lines.append("PYTEST-WARNING {} {}".format(report.nodeid,
                                                    report.message))
     if lines:
-        print("collection error, skip, xFail/xPass and pytest-warning reasons "
-              "(short test summary info)")
+        pytest.log.high_level_step("collection error, skip, xFail/xPass and "
+                                   "pytest-warning reasons (short test summary "
+                                   "info)")
         for line in lines:
-            print(line)
+            pytest.log.detail_step(line)
     else:
-        debug_print("No collection errors, skips, xFail/xPass or pytest-"
-                    "warnings", DEBUG["summary"])
+        pytest.log.high_level_step("No collection errors, skips, xFail/xPass or "
+                                   "pytest-warnings")
 
     session_duration = time.time() - terminalreporter._sessionstarttime
-    debug_print("Session duration: {}s (sum of phases: {}s)".format(
-        session_duration, total_session_duration), DEBUG["summary"])
-    debug_print(summary_results, DEBUG["summary"])
+    debug_print("All tests result summary: {}. Session duration: {}s (sum of "
+                "phases: {}s)".format(summary_results, session_duration,
+                                      total_session_duration),
+                DEBUG["summary"])
 
     outcomes = []
     for outcome in hierarchy:
@@ -894,19 +902,7 @@ def pytest_terminal_summary(terminalreporter):
                                            outcome_message))
     summary_line = "{0} in {1:.2f}s".format(", ".join(outcomes),
                                             session_duration)
-    # try:
-    #     import fcntl
-    #     import termios
-    #     import struct
-    #     call = fcntl.ioctl(1, termios.TIOCGWINSZ, "\000"*8)
-    #     width = struct.unpack("hhhh", call)[:2][1]  # Get terminal size
-    # except Exception:
-    #     # Default width for if parameter not sent from parent process
-    #     width = 80
-    # print width
-    # TODO potential enhancenment of loglevel nd outputredirection - add
-    # fill param to fill the whole line
-    print("{0} {1} {0}".format("="*50, summary_line))
+    pytest.log.high_level_step(summary_line)
 
     # # DEBUG ONLY
     # # Passes never seems to print anything - no summary?
