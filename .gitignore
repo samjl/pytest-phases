@@ -8,3 +8,4 @@ build/
 requirements.txt
 .directory
 .pytest_cache/
+test_results/
