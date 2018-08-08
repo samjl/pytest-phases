@@ -301,6 +301,7 @@ def pytest_fixture_setup(fixturedef, request):
     # SessionStatus.mongo.update_test_result(
     #     {"_id": SessionStatus.test_object_id},
     #     {"$set": {"fixtures": SessionStatus.test_fixtures[SessionStatus.test_function]}})
+    SessionStatus.mongo.init_fixture(fixture_name, fixturedef.scope)
 
     res = yield
     debug_print("Fixture setup (after yield): {}".format(res),

@@ -344,7 +344,7 @@ class MongoConnector(object):
             teardownSummary={},
             scope=scope,
             firstTest=None,
-            setupOutcome="pending",
+            setupOutcome="in-progress",
             teardownOutcome="pending"
         )
         self.fix_oid = insert_document(self.db.fixtures, fixture)
