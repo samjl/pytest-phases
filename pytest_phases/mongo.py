@@ -143,7 +143,7 @@ class MongoConnector(object):
             summaryTests="pending",  # will be a dict
             plan="ObjectId link",
             sessionId=MongoConnector.session_id,
-            swBuild=dict(
+            embeddedVersion=dict(
                 branchName="",
                 buildNumber=1234,
                 type="ER",
@@ -158,7 +158,8 @@ class MongoConnector(object):
             expiry=False,
             collected=collected_tests,
             modules=[],
-            sessionFixtures=[]
+            sessionFixtures=[],
+            activeSetups=[]
         )
         self.session_oid = insert_document(self.db.sessions, session)
 
@@ -301,7 +302,7 @@ class MongoConnector(object):
 
         test_result = dict(
             sessionId=MongoConnector.session_id,
-            fucntionFixtures=[],  # links to fixture docs
+            functionFixtures=[],  # links to fixture docs
             moduleName=module_name,
             className=class_name,
             testName=test_function,
@@ -461,11 +462,11 @@ class MongoConnector(object):
             scope=saved_result.scope,
             activeSetups=saved_result.active
         )
-        res = insert_document(self.db.verifications, verify)
+        # TODO add defect and analysis if required
+        res = insert_document(self.db.verifications, verify)  # FIXME remove
 
-        # TODO Add the link to the verification doc to the corresponding
-        # parent document. This could be a testresult (call phase) or
-        # fixture (setup or teardown phase).
+        # TODO add the embedded verification document to the parent
+        # tesresult or fixture (setup or teardown)
 
         # TODO to add to the saved Result object
         # fail condition
