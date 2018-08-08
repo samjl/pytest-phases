@@ -359,7 +359,7 @@ class MongoConnector(object):
 
     def insert_log_message(self, index, level, step, message):
         """
-        Insert a log mesasge to the testlogs collection. Insert the
+        Insert a log message to the testlogs collection. Insert the
         message ObjectId to the list in the corresponding loglinks
         document.
         Note: ObjectId is only to the nearest second so datetime
@@ -463,10 +463,30 @@ class MongoConnector(object):
             activeSetups=saved_result.active
         )
         # TODO add defect and analysis if required
-        res = insert_document(self.db.verifications, verify)  # FIXME remove
 
-        # TODO add the embedded verification document to the parent
-        # tesresult or fixture (setup or teardown)
+        # Add embedded verification document to the parent testresult or
+        # fixture (setup or teardown)
+        if (saved_result.phase in ("setup", "teardown") and
+                saved_result.fixture_name and self.fix_oid):
+            collection = self.db.fixtures
+            doc_oid = self.fix_oid
+        elif (saved_result.phase == "call" and saved_result.test_function
+              and self.test_oid):
+            collection = self.db.testresults
+            doc_oid = self.test_oid
+        else:
+            raise AssertionError("Failed to insert verification result, "
+                                 "invalid parameters to define parent doc",
+                                 saved_result.phase,
+                                 saved_result.fixture_name,
+                                 self.fix_oid,
+                                 saved_result.test_function,
+                                 self.test_oid)
+
+        update_one_document(collection,
+                            {"_id": doc_oid},
+                            {"$push": {"{}Verifications".format(
+                                saved_result.phase): verify}})
 
         # TODO to add to the saved Result object
         # fail condition
