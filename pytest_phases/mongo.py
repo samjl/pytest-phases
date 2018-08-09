@@ -354,13 +354,33 @@ class MongoConnector(object):
         )
         self.fix_oid = insert_document(self.db.fixtures, fixture)
 
-    def update_test_result(self, query, update):
-        try:
-            res = self.db.testresults.update_one(query, update)
-        except Exception as e:
-            print(e)
-            raise
-        print(res)
+        # Add fixture ObjectID link to parent (session.sessionFixtures,
+        # modules.moduleFixtures, modules.classes.classFixtures or
+        # testresults.functionFixtures)
+        if scope == "function":
+            # add OId to testresult
+            match = {"_id": self.test_oid}
+            update = {"$push": {"functionFixtures": self.fix_oid}}
+            collection = self.db.testresults
+        elif scope == "class":
+            # Test parent is an existing class doc
+            match = {
+                "_id": self.module_oid,
+                "classes": {"$elemMatch": {"_id": self.class_oid}}
+            }
+            update = {"$push": {"classes.$.classFixtures": self.fix_oid}}
+            collection = self.db.modules
+        elif scope == "module":
+            match = {"_id": self.module_oid}
+            update = {"$push": {"moduleFixtures": self.fix_oid}}
+            collection = self.db.modules
+        elif scope == "session":
+            match = {"_id": self.session_oid}
+            update = {"$push": {"sessionFixtures": self.fix_oid}}
+            collection = self.db.sessions
+        else:
+            raise AssertionError("Unknown fixture scope {}".format(scope))
+        update_one_document(collection, match, update)
 
     def insert_log_message(self, index, level, step, message):
         """
