@@ -403,6 +403,20 @@ def pytest_pyfunc_call(pyfuncitem):
                 DEBUG["phases"])
     if raised_exc:
         if raised_exc[0] not in (WarningException, VerificationException):
+            # # DEBUG experimental code to retrieve the source code of the
+            # # function that rasied an assertion
+            # import inspect
+            # from _pytest._code.code import ExceptionInfo
+            # exc_info_py = ExceptionInfo(tup=raised_exc)
+            # calling_func = inspect.getsourcelines(
+            #     exc_info_py.traceback[-1]._rawentry
+            # )
+            # for line in calling_func[0]:
+            #     print(line)
+            # # tb_report = exc_info_py.getrepr()
+            # # print(tb_report)
+            # # END OF DEBUG
+
             # For exceptions other than Warning and Verifications:
             # * save the exceptions details and traceback so they are
             # printed in the final test summary,
