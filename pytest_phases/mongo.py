@@ -199,6 +199,11 @@ class MongoConnector(object):
             module["moduleTests"].append(self.test_oid)
         self.module_oid = insert_document(self.db.modules, module)
 
+        # Add the module ObjectID link to the parent session
+        match = {"_id": self.session_oid}
+        update = {"$push": {"modules": self.module_oid}}
+        update_one_document(self.db.sessions, match, update)
+
     def push_class_to_module(self, new_class_name):
         """
         Push a class embedded document to the parent module document.
