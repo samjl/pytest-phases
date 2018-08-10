@@ -151,13 +151,17 @@ class MongoConnector(object):
                 patch=""
             ),
             status="in-progress",
-            progress="pending",
-            runOrder=[],
+            # pending/queued/in-progress/stalled/paused/complete
+            progress=dict(
+                running=dict(),
+                testVerifications=dict(),
+                activeSetups=[]
+            ),
+            runOrder=[],  # List of embedded docs
             expiry=False,
             collected=collected_tests,
             modules=[],
             sessionFixtures=[],
-            activeSetups=[]
         )
         self.session_oid = insert_document(self.db.sessions, session)
 
@@ -283,12 +287,29 @@ class MongoConnector(object):
         else:
             module_name = SessionStatus.module
 
-        # update session progress
-        progress = "{0[0]}::{0[1]}::{0[2]}".format(SessionStatus.run_order[-1])
+        # Update the parent session progress and runOrder (module link is
+        # added later)
         match = {"_id": self.session_oid}
         update = {
-            "$set": {"progress": progress},
-            "$push": {"runOrder": progress}
+            "$push": {
+                "runOrder": dict(
+                    moduleName=module_name,
+                    className=class_name,
+                    testName=test_function,
+                    outcome="pending",
+                    duration="pending"
+                )
+            },
+            "$set": {
+                "progress.running": dict(
+                    moduleName=module_name,
+                    className=class_name,
+                    testName=test_function,
+                    fixtureName=None,
+                    phase=None
+                ),
+                "progress.testVerifications": dict()  # Clear for current test
+             }
         }
         update_one_document(self.db.sessions, match, update)
 
