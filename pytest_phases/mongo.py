@@ -139,8 +139,6 @@ class MongoConnector(object):
                 sha=None,
                 branch="master"
             ),
-            summaryVerify="pending",  # will be a dict
-            summaryTests="pending",  # will be a dict
             plan="ObjectId link",
             sessionId=MongoConnector.session_id,
             embeddedVersion=dict(
@@ -180,8 +178,6 @@ class MongoConnector(object):
         module = dict(
             sessionId=MongoConnector.session_id,
             classes=[],
-            summaryVerify="pending",
-            summaryTests="pending",
             moduleName=test_module,
             status="in-progress",
             moduleId=1,  # TODO Aviat get from test module name
