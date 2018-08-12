@@ -306,7 +306,7 @@ class MongoConnector(object):
                     className=class_name,
                     testName=test_function,
                     fixtureName=None,
-                    phase=None
+                    phase="setup"
                 ),
                 "progress.testVerifications": dict()  # Clear for current test
              }
@@ -398,6 +398,18 @@ class MongoConnector(object):
         else:
             raise AssertionError("Unknown fixture scope {}".format(scope))
         update_one_document(collection, match, update)
+
+        # Update the session progress with the fixture and phase.
+        # Note: module, class, test are unchanged just update the fixture name
+        # and phase.
+        match = {"_id": self.session_oid}
+        update = {
+            "$set": {
+                "progress.running.fixtureName": name,
+                "progress.running.phase": "setup"
+             }
+        }
+        update_one_document(self.db.sessions, match, update)
 
     def insert_log_message(self, index, level, step, message):
         """
