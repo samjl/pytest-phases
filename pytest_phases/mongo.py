@@ -533,8 +533,9 @@ class MongoConnector(object):
         )
         # TODO add defect and analysis if required
 
-        # Add embedded verification document to the parent testresult or
-        # fixture (setup or teardown)
+        # Update parent testresult or fixture (setup or teardown):
+        # 1. add embedded verification document
+        # 2. increment the verification type counter
         if (saved_result.phase in ("setup", "teardown") and
                 saved_result.fixture_name and self.fix_oid):
             collection = self.db.fixtures
@@ -551,11 +552,13 @@ class MongoConnector(object):
                                  self.fix_oid,
                                  saved_result.test_function,
                                  self.test_oid)
-
         update_one_document(collection,
                             {"_id": doc_oid},
                             {"$push": {"{}Verifications".format(
-                                saved_result.phase): verify}})
+                                saved_result.phase): verify},
+                             "$inc": {"{}Summary.{}".format(saved_result.phase,
+                                saved_result.type_code): 1}
+                             })
 
         # TODO to add to the saved Result object
         # fail condition
