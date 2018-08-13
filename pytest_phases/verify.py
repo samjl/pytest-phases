@@ -87,14 +87,17 @@ class Verifications(object):
     # Any other exceptions have already been raised (and saved when caught in
     # pytest_fixture_setup).
     def fixture_setup_raise_saved(self, fixture_name, test_name):
-        results = self._fixture_setup_results(fixture_name, test_name)
+        results, summary, outcome = self._fixture_setup_results(fixture_name,
+                                                                test_name)
         self._raise_exc_type(results, VerificationException)
         self._raise_exc_type(results, WarningException)
+        return results, summary, outcome
 
     def fixture_teardown_raise_saved(self, fixture_name, test_name):
-        results = self._fixture_teardown_results(fixture_name, test_name)
+        results, summary, outcome = self._fixture_teardown_results(fixture_name, test_name)
         self._raise_exc_type(results, VerificationException)
         self._raise_exc_type(results, WarningException)
+        return results, summary, outcome
 
     def _fixture_setup_results(self, fixture_name, test_name):
         results = self._fixture_results("setup", fixture_name, test_name)
@@ -109,7 +112,7 @@ class Verifications(object):
 
         debug_print("{} setup outcome: {}".format(fixture_name,
                                                   fixture_outcome(summary)))
-        return results
+        return results, summary, fixture_outcome(summary)
 
     def _fixture_teardown_results(self, fixture_name, test_name):
         results = self._fixture_results("teardown", fixture_name, test_name)
@@ -124,7 +127,7 @@ class Verifications(object):
 
         debug_print("{} teardown outcome: {}".format(fixture_name,
                                                      fixture_outcome(summary)))
-        return results
+        return results, summary, fixture_outcome(summary)
 
     def _fixture_results(self, phase, fixture_name, test_name):
         return self.filter_results(phase=phase, fixture_name=fixture_name,
