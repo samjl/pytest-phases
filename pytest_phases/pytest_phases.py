@@ -322,8 +322,10 @@ def pytest_fixture_setup(fixturedef, request):
 
     debug_print("Fixture SETUP for {0.argname} with {0.scope} scope COMPLETE"
                 .format(fixturedef), DEBUG["scopes"])
-    SessionStatus.verifications.fixture_setup_raise_saved(fixture_name,
-                                                          test_name)
+    results, summary, outcome = \
+        SessionStatus.verifications.fixture_setup_raise_saved(fixture_name,
+                                                              test_name)
+    SessionStatus.mongo.update_fixture_setup(fixture_name, outcome)
 
 
 # Introduced in pytest 3.0.0

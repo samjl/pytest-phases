@@ -411,6 +411,21 @@ class MongoConnector(object):
         }
         update_one_document(self.db.sessions, match, update)
 
+    def update_fixture_setup(self, name, outcome):
+        # Update session: activeSetups
+        match = {"_id": self.session_oid}
+        update = {"$push": {"progress.activeSetups": name}}
+        update_one_document(self.db.sessions, match, update)
+
+        # Update testresult: outcome (depends upon all fixtures),
+        # check fixture in expected "fixtures" list?
+        # FIXME is this even required?
+
+        # Update fixture: setupOutcome
+        match = {"_id": self.fix_oid}
+        update = {"$set": {"setupOutcome": outcome}}
+        update_one_document(self.db.fixtures, match, update)
+
     def insert_log_message(self, index, level, step, message):
         """
         Insert a log message to the testlogs collection. Insert the
