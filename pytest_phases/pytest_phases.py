@@ -325,7 +325,7 @@ def pytest_fixture_setup(fixturedef, request):
     results, summary, outcome = \
         SessionStatus.verifications.fixture_setup_raise_saved(fixture_name,
                                                               test_name)
-    SessionStatus.mongo.update_fixture_setup(fixture_name, outcome)
+    SessionStatus.mongo.update_fixture_setup(fixture_name, outcome, summary)
 
 
 # Introduced in pytest 3.0.0
@@ -358,8 +358,9 @@ def pytest_fixture_post_finalizer(fixturedef, request):
                 "COMPLETE".format(fixturedef), DEBUG["scopes"])
     fixture_name = fixturedef.argname
     test_name = request._pyfuncitem.name
-    SessionStatus.verifications.fixture_teardown_raise_saved(fixture_name,
-                                                             test_name)
+    results, summary, outcome = \
+        SessionStatus.verifications.fixture_teardown_raise_saved(fixture_name,
+                                                                 test_name)
 
     res = yield
     # DEBUG seem to get multiple module based executions of this code ???
@@ -376,7 +377,11 @@ def pytest_fixture_post_finalizer(fixturedef, request):
     try:
         SessionStatus.active_setups.remove(setup_args)
     except ValueError as e:
-        print(e)
+        debug_print("Could not remove fixture from active setups (probably "
+                    "removed already) - {}".format(e), DEBUG["scopes"])
+    else:
+        SessionStatus.mongo.update_fixture_teardown(fixturedef.argname,
+                                                    outcome, summary)
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -440,12 +445,9 @@ def pytest_runtest_teardown(item, nextitem):
     debug_print("Test TEARDOWN - Starting {}".format(item), DEBUG["phases"])
     SessionStatus.phase = "teardown"
 
-    i = get_current_index()
-    # FIXME keep track of current test ObjectId or find it every time?
-    query = {"_id": SessionStatus.test_object_id}
-    update = {"$set": {"teardown": {"logStart": i}}}
-    debug_print("Updating oid {}".format(query), DEBUG["mongo"])
-    # SessionStatus.mongo.update_test_result(query, update)
+    # i = get_current_index()
+
+    SessionStatus.mongo.update_teardown_phase()
 
     outcome = yield
     debug_print("Test TEARDOWN - completed {}, outcome: {}".format(item,

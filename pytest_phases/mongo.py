@@ -153,9 +153,9 @@ class MongoConnector(object):
             status="in-progress",
             # pending/queued/in-progress/stalled/paused/complete
             progress=dict(
-                running=dict(),
-                testVerifications=dict(),
-                activeSetups=[]
+                completed=dict(),
+                activeSetups=[],
+                phase=None
             ),
             runOrder=[],  # List of embedded docs
             expiry=False,
@@ -264,9 +264,8 @@ class MongoConnector(object):
         Insert loglink document and add link to the testresult (in
         initial insert above).
         Update session document:
-            update progress: "module::class::test" (fixture setup adds
-            to this later),
-            append to the runOrder: "module::class::test",
+            update progress phase;
+            append to the runOrder: module, class, test;
             add link to module (below) if required.
         Insert module document if test is in a new module.
         Insert embedded class document to module if test is in a new
@@ -301,14 +300,7 @@ class MongoConnector(object):
                 )
             },
             "$set": {
-                "progress.running": dict(
-                    moduleName=module_name,
-                    className=class_name,
-                    testName=test_function,
-                    fixtureName=None,
-                    phase="setup"
-                ),
-                "progress.testVerifications": dict()  # Clear for current test
+                "progress.phase": "setup"
              }
         }
         update_one_document(self.db.sessions, match, update)
@@ -399,22 +391,26 @@ class MongoConnector(object):
             raise AssertionError("Unknown fixture scope {}".format(scope))
         update_one_document(collection, match, update)
 
-        # Update the session progress with the fixture and phase.
-        # Note: module, class, test are unchanged just update the fixture name
-        # and phase.
+    def update_fixture_setup(self, name, outcome, summary):
+        # Update session active setups and progress.completed (fixture setup)
         match = {"_id": self.session_oid}
         update = {
+            "$push": {
+                "progress.activeSetups": name
+            },
             "$set": {
-                "progress.running.fixtureName": name,
-                "progress.running.phase": "setup"
-             }
+                "progress.completed": dict(
+                    moduleName=SessionStatus.module,
+                    className=SessionStatus.class_name,
+                    # test name could be set to None for class+ scopes
+                    testName=SessionStatus.test_function,
+                    fixtureName=name,
+                    phase="setup",
+                    outcome=outcome,
+                    verifications=summary
+                )
+            }
         }
-        update_one_document(self.db.sessions, match, update)
-
-    def update_fixture_setup(self, name, outcome):
-        # Update session: activeSetups
-        match = {"_id": self.session_oid}
-        update = {"$push": {"progress.activeSetups": name}}
         update_one_document(self.db.sessions, match, update)
 
         # Update testresult: outcome (depends upon all fixtures),
@@ -425,6 +421,59 @@ class MongoConnector(object):
         match = {"_id": self.fix_oid}
         update = {"$set": {"setupOutcome": outcome}}
         update_one_document(self.db.fixtures, match, update)
+
+    def update_fixture_teardown(self, name, outcome, summary):
+        match = {"_id": self.session_oid}
+        # session progress
+        update_session = {
+            "$set": {
+                "progress.completed": dict(
+                    moduleName=SessionStatus.module,
+                    className=SessionStatus.class_name,
+                    # test name could be set to None for class+ scopes
+                    testName=SessionStatus.test_function,
+                    fixtureName=name,
+                    phase="teardown",
+                    outcome=outcome,
+                    verifications=summary
+                )
+            }
+        }
+        # remove setup fixture from session's active setup list if present
+        pipeline = [
+            {"$match": {"_id": self.session_oid}},
+            {"$project": {"progress.activeSetups": 1}}
+        ]
+        res = list(self.db.sessions.aggregate(pipeline))
+        assert len(res) == 1, "Failed to get active setups for current session"
+        try:
+            active = res[0]['progress']['activeSetups']
+        except IndexError as e:
+            print("Failed to extract active setups list for current session")
+        else:
+            # remove the first instance of the fixture - last in, first out
+            active.reverse()
+            # remove first instance of fixture from reversed list
+            active.remove(name)
+            active.reverse()  # restore original order
+        update_session["$set"].update({"progress.activeSetups": active})
+
+        update_one_document(self.db.sessions, match, update_session)
+
+        # Update fixture: teardownOutcome
+        match = {"_id": self.fix_oid}
+        update = {"$set": {"teardownOutcome": outcome}}
+        update_one_document(self.db.fixtures, match, update)
+
+    def update_teardown_phase(self):
+        # Update the parent session progress
+        match = {"_id": self.session_oid}
+        update = {
+            "$set": {
+                "progress.phase": "teardown"
+             }
+        }
+        update_one_document(self.db.sessions, match, update)
 
     def insert_log_message(self, index, level, step, message):
         """
