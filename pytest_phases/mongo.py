@@ -509,6 +509,26 @@ class MongoConnector(object):
         }
         update_one_document(self.db.testresults, match, update)
 
+    def update_pre_call_phase(self):
+        # Update the parent session progress
+        match = {"_id": self.session_oid}
+        update = {
+            "$set": {
+                "progress.phase": "call",
+             }
+        }
+        update_one_document(self.db.sessions, match, update)
+        time.sleep(1)
+
+        # Update test result
+        match = {"_id": self.test_oid}
+        update = {
+            "$set": {
+                "outcome.call": "in-progress"
+            }
+        }
+        update_one_document(self.db.testresults, match, update)
+
     def insert_log_message(self, index, level, step, message):
         """
         Insert a log message to the testlogs collection. Insert the

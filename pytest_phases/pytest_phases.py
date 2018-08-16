@@ -394,12 +394,13 @@ def pytest_pyfunc_call(pyfuncitem):
     #     {"_id": SessionStatus.test_object_id},
     #     {"$set": {"testFunction": SessionStatus.test_function}})
 
-    i = get_current_index()
+    # i = get_current_index()
     # FIXME keep track of current test ObjectId or find it every time?
-    query = {"_id": SessionStatus.test_object_id}
-    update = {"$set": {"call": {"logStart": i}}}
-    debug_print("Updating oid {}".format(query), DEBUG["mongo"])
+    # query = {"_id": SessionStatus.test_object_id}
+    # update = {"$set": {"call": {"logStart": i}}}
+    # debug_print("Updating oid {}".format(query), DEBUG["mongo"])
     # SessionStatus.mongo.update_test_result(query, update)
+    SessionStatus.mongo.update_pre_call_phase()
 
     outcome = yield
     debug_print("CALL - Completed {}, outcome {}".format(pyfuncitem, outcome),
