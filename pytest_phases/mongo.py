@@ -475,6 +475,15 @@ class MongoConnector(object):
         }
         update_one_document(self.db.sessions, match, update)
 
+        # Update test result
+        match = {"_id": self.test_oid}
+        update = {
+            "$set": {
+                "outcome.teardown": "in-progress"
+            }
+        }
+        update_one_document(self.db.testresults, match, update)
+
     def insert_log_message(self, index, level, step, message):
         """
         Insert a log message to the testlogs collection. Insert the
