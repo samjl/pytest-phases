@@ -644,8 +644,11 @@ def pytest_report_teststatus(report):
     debug_print("result category: {}".format(result_category),
                 DEBUG["phases"])
     # Get the saved results, saved result summary and the phase outcome
-    SessionStatus.verifications.phase_summary_and_outcome(report.when,
-                                                          result_category)
+    results, summary, outcome = \
+        SessionStatus.verifications.phase_summary_and_outcome(report.when,
+                                                              result_category)
+    SessionStatus.mongo.update_test_phase_complete(report.when, outcome,
+                                                   summary)
 
     if report.when == "teardown":
         # FIXME this is just for a single test

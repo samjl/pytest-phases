@@ -147,6 +147,7 @@ class Verifications(object):
         debug_print("{} outcome: {}".format(
             phase.capitalize(), phase_outcome(summary, result_category)
         ))
+        return results, summary, phase_outcome(summary, result_category)
 
     def phase_results(self, phase):
         test = SessionStatus.test_function
