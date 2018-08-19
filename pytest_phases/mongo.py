@@ -490,10 +490,18 @@ class MongoConnector(object):
         update = {
             "$set": {
                 "progress.phase": None,  # TODO required?
-                "progress.completed.fixtureName": None,
-                "progress.completed.phase": completed_phase,
-                "progress.completed.outcome": outcome,
-                "progress.completed.verifications": summary,
+                # Workaround for mongo bug:
+                # https://jira.mongodb.org/browse/SERVER-21889
+                "progress.completed": dict(
+                    moduleName=SessionStatus.module,
+                    className=SessionStatus.class_name,
+                    # test name could be set to None for class+ scopes
+                    testName=SessionStatus.test_function,
+                    fixtureName=None,
+                    phase=completed_phase,
+                    outcome=outcome,
+                    verifications=summary
+                )
              }
         }
         update_one_document(self.db.sessions, match, update)
