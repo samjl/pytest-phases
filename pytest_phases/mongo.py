@@ -497,7 +497,6 @@ class MongoConnector(object):
              }
         }
         update_one_document(self.db.sessions, match, update)
-        time.sleep(1)
 
         # Update test result
         match = {"_id": self.test_oid}
@@ -518,7 +517,6 @@ class MongoConnector(object):
              }
         }
         update_one_document(self.db.sessions, match, update)
-        time.sleep(1)
 
         # Update test result
         match = {"_id": self.test_oid}
