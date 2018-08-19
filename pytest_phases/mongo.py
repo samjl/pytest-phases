@@ -17,6 +17,7 @@ from .loglevels import MIN_LEVEL, MAX_LEVEL, get_parents
 from .verify import SessionStatus
 from .common import DEBUG
 from .common import debug_print as debug_print_common
+from .outcomes import hierarchy
 standard_library.install_aliases()
 
 # don't bother with a timestamp - use the ObjectId
@@ -288,10 +289,12 @@ class MongoConnector(object):
 
         # Update the parent session progress and runOrder (module link is
         # added later)
+        run_order_oid = ObjectId()
         match = {"_id": self.session_oid}
         update = {
             "$push": {
                 "runOrder": dict(
+                    _id=run_order_oid,
                     moduleName=module_name,
                     className=class_name,
                     testName=test_function,
@@ -316,6 +319,7 @@ class MongoConnector(object):
 
         test_result = dict(
             sessionId=MongoConnector.session_id,
+            runOrderId=run_order_oid,
             functionFixtures=[],  # links to fixture docs
             moduleName=module_name,
             className=class_name,
@@ -422,7 +426,10 @@ class MongoConnector(object):
         update = {"$set": {"setupOutcome": outcome}}
         update_one_document(self.db.fixtures, match, update)
 
-    def update_fixture_teardown(self, name, outcome, summary):
+        # TODO update testresult.outcome.setup
+        # TODO update session.runOrder.$.outcome
+
+    def update_fixture_teardown(self, name, outcome, summary, scope):
         match = {"_id": self.session_oid}
         # session progress
         update_session = {
@@ -459,11 +466,77 @@ class MongoConnector(object):
         update_session["$set"].update({"progress.activeSetups": active})
 
         update_one_document(self.db.sessions, match, update_session)
+        if DEBUG["mongo"].enabled: time.sleep(1)
 
         # Update fixture: teardownOutcome
         match = {"_id": self.fix_oid}
         update = {"$set": {"teardownOutcome": outcome}}
         update_one_document(self.db.fixtures, match, update)
+
+        def update_tests_in_scope(test_oids, fixture_outcome):
+            for test_oid in test_oids:
+                doc = self.db.testresults.find_one({"_id": test_oid})
+                print("{} - teardown outcome initial: {}".format(
+                    doc["testName"], doc["outcome"]["teardown"]))
+                # Check if the teardown outcome requires updating.
+                print("comparing with class fixture outcome: {}"
+                      .format(fixture_outcome))
+                teardown_outcome = doc["outcome"]["teardown"]
+                initial_index = hierarchy.index(teardown_outcome)
+                print("Initial index = {}".format(initial_index))
+                if hierarchy.index(fixture_outcome) < initial_index:
+                    print("Teardown outcome update required")
+                    teardown_outcome = fixture_outcome
+                    update_teardown_outcome = True
+                else:
+                    update_teardown_outcome = False
+                # Update the overall outcome, compare:
+                # doc["outcome"]["setup"], doc["outcome"]["call"],
+                # teardown_outcome
+                overall_index = min(hierarchy.index(doc["outcome"]["setup"]),
+                                    hierarchy.index(doc["outcome"]["call"]),
+                                    hierarchy.index(teardown_outcome))
+                overall_outcome = hierarchy[overall_index]
+                print("Overall outcome: {} [{}]".format(overall_outcome,
+                                                        overall_index))
+                match = dict(_id=test_oid)
+                update = {"$set": {"outcome.overall": overall_outcome}}
+                if update_teardown_outcome:
+                    update["$set"]["outcome.teardown"] = teardown_outcome
+                update_one_document(self.db.testresults, match, update)
+
+                # Update session.runOrder (Uses _id link in associated
+                # testresult).
+                run_order_oid = doc["runOrderId"]
+                match = {"_id": self.session_oid,
+                         "runOrder._id": run_order_oid}
+                update = {"runOrder.$.outcome": overall_outcome}
+                update_one_document(self.db.sessions, match, update)
+
+        # TODO session scoped fixtures
+        # For module or class scoped fixtures update all corresponding test
+        # outcomes and session.runOrder
+        if scope == "module":
+            doc = self.db.modules.find_one(
+                {"_id": self.module_oid},
+                # Projection
+                {"_id": 0, "moduleTests": 1, "classes.classTests": 1}
+            )
+            test_oids = doc["moduleTests"]
+            for class_doc in doc["classes"]:
+                test_oids.extend(class_doc["classTests"])
+            debug_print("All test oids in module:", prettify=test_oids)
+            update_tests_in_scope(test_oids, outcome)
+        elif scope == "class":
+            doc = self.db.modules.find_one(
+                {"_id": self.module_oid, "classes._id": self.class_oid},
+                # Projection
+                {"_id": 0, "classes.$": 1}
+            )
+            class_doc = doc["classes"][0]
+            test_oids = class_doc["classTests"]
+            debug_print("All test oids in class:", prettify=test_oids)
+            update_tests_in_scope(test_oids, outcome)
 
     def update_teardown_phase(self):
         # Update the parent session progress

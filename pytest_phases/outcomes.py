@@ -23,6 +23,7 @@ class Outcomes(object):
     pytest_warning = "pytest-warning"
     collect_error = "collection error"
     unknown = "Unknown result"
+    in_progress = "in-progress"
 
 
 phase_map = {
@@ -65,7 +66,9 @@ hierarchy = (
     Outcomes.unexpected_pass,
     Outcomes.passed,
     Outcomes.pytest_warning,
-    Outcomes.collect_error
+    Outcomes.collect_error,
+    Outcomes.unknown,
+    Outcomes.in_progress
 )
 
 

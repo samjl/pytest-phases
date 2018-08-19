@@ -358,6 +358,7 @@ def pytest_fixture_post_finalizer(fixturedef, request):
                 "COMPLETE".format(fixturedef), DEBUG["scopes"])
     fixture_name = fixturedef.argname
     test_name = request._pyfuncitem.name
+    scope = fixturedef.scope
     results, summary, outcome = \
         SessionStatus.verifications.fixture_teardown_raise_saved(fixture_name,
                                                                  test_name)
@@ -381,7 +382,7 @@ def pytest_fixture_post_finalizer(fixturedef, request):
                     "removed already) - {}".format(e), DEBUG["scopes"])
     else:
         SessionStatus.mongo.update_fixture_teardown(fixturedef.argname,
-                                                    outcome, summary)
+                                                    outcome, summary, scope)
 
 
 @pytest.hookimpl(hookwrapper=True)
