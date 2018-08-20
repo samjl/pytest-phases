@@ -322,10 +322,14 @@ def pytest_fixture_setup(fixturedef, request):
 
     debug_print("Fixture SETUP for {0.argname} with {0.scope} scope COMPLETE"
                 .format(fixturedef), DEBUG["scopes"])
-    results, summary, outcome = \
-        SessionStatus.verifications.fixture_setup_raise_saved(fixture_name,
-                                                              test_name)
+    results, summary, outcome = (SessionStatus.verifications.
+                                 fixture_setup_results(fixture_name,
+                                                       test_name))
+
     SessionStatus.mongo.update_fixture_setup(fixture_name, outcome, summary)
+
+    SessionStatus.verifications.raise_exc_type(results, VerificationException)
+    SessionStatus.verifications.raise_exc_type(results, WarningException)
 
 
 # Introduced in pytest 3.0.0
@@ -359,15 +363,9 @@ def pytest_fixture_post_finalizer(fixturedef, request):
     fixture_name = fixturedef.argname
     test_name = request._pyfuncitem.name
     scope = fixturedef.scope
-    results, summary, outcome = \
-        SessionStatus.verifications.fixture_teardown_raise_saved(fixture_name,
-                                                                 test_name)
-
-    res = yield
-    # DEBUG seem to get multiple module based executions of this code ???
-    debug_print("Fixture post finalizer (after yield): {}".format(res),
-                DEBUG["scopes"], prettify=res.__dict__)
-
+    results, summary, outcome = (SessionStatus.verifications.
+                                 fixture_teardown_results(fixture_name,
+                                                          test_name))
     if hasattr(request, "param"):
         setup_params = "[{}]".format(request.param)
     else:
@@ -383,6 +381,14 @@ def pytest_fixture_post_finalizer(fixturedef, request):
     else:
         SessionStatus.mongo.update_fixture_teardown(fixturedef.argname,
                                                     outcome, summary, scope)
+
+    res = yield
+    # DEBUG seem to get multiple module based executions of this code ???
+    debug_print("Fixture post finalizer (after yield): {}".format(res),
+                DEBUG["scopes"], prettify=res.__dict__)
+
+    SessionStatus.verifications.raise_exc_type(results, VerificationException)
+    SessionStatus.verifications.raise_exc_type(results, WarningException)
 
 
 @pytest.hookimpl(hookwrapper=True)

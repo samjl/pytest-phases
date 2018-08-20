@@ -61,7 +61,7 @@ class Verifications(object):
         return summary
 
     @classmethod
-    def _raise_exc_type(cls, results, type_to_raise):
+    def raise_exc_type(cls, results, type_to_raise):
         for i, saved_result in enumerate(results):
             if saved_result.traceback_link:
                 exc_type = saved_result.traceback_link.exc_type
@@ -87,19 +87,19 @@ class Verifications(object):
     # Any other exceptions have already been raised (and saved when caught in
     # pytest_fixture_setup).
     def fixture_setup_raise_saved(self, fixture_name, test_name):
-        results, summary, outcome = self._fixture_setup_results(fixture_name,
-                                                                test_name)
-        self._raise_exc_type(results, VerificationException)
-        self._raise_exc_type(results, WarningException)
+        results, summary, outcome = self.fixture_setup_results(fixture_name,
+                                                               test_name)
+        self.raise_exc_type(results, VerificationException)
+        self.raise_exc_type(results, WarningException)
         return results, summary, outcome
 
     def fixture_teardown_raise_saved(self, fixture_name, test_name):
-        results, summary, outcome = self._fixture_teardown_results(fixture_name, test_name)
-        self._raise_exc_type(results, VerificationException)
-        self._raise_exc_type(results, WarningException)
+        results, summary, outcome = self.fixture_teardown_results(fixture_name, test_name)
+        self.raise_exc_type(results, VerificationException)
+        self.raise_exc_type(results, WarningException)
         return results, summary, outcome
 
-    def _fixture_setup_results(self, fixture_name, test_name):
+    def fixture_setup_results(self, fixture_name, test_name):
         results = self._fixture_results("setup", fixture_name, test_name)
         summary = self._results_summary(results)
         debug_print("{} results summary:".format(fixture_name),
@@ -114,7 +114,7 @@ class Verifications(object):
                                                   fixture_outcome(summary)))
         return results, summary, fixture_outcome(summary)
 
-    def _fixture_teardown_results(self, fixture_name, test_name):
+    def fixture_teardown_results(self, fixture_name, test_name):
         results = self._fixture_results("teardown", fixture_name, test_name)
         summary = self._results_summary(results)
         debug_print("{} results summary:".format(fixture_name),
