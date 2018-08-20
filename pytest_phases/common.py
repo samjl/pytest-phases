@@ -32,7 +32,8 @@ DEBUG = {"print-saved": DebugFunctionality("print saved", False),
          "scopes": DebugFunctionality("scopes", False),
          "summary": DebugFunctionality("summary", False),
          "output-redirect": DebugFunctionality("redirect", True),
-         "mongo": DebugFunctionality("mongo", True)}
+         "mongo": DebugFunctionality("mongo", True),
+         "dev": DebugFunctionality("dev", False)}
 
 CONFIG = {"include-verify-local-vars":
           ConfigOption(bool, True, "Include local variables in tracebacks "

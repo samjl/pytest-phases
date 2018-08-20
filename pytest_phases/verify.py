@@ -264,6 +264,8 @@ class Result(object):
         elif self.phase == "teardown":
             # workaround for intermediate (parameterized) module teardown
             # pytest bug https://github.com/pytest-dev/pytest/issues/3032
+            debug_print_common("Set fixture name again (workaround)",
+                               DEBUG["dev"])
             self.fixture_name = SessionStatus.active_setups[-1]
         else:
             self.fixture_name = SessionStatus.exec_func_fix

@@ -12,6 +12,7 @@ import datetime
 from future import standard_library
 from builtins import object, range
 from pymongo import MongoClient
+from _pytest.runner import CallInfo
 from bson.objectid import ObjectId
 from .loglevels import MIN_LEVEL, MAX_LEVEL, get_parents
 from .verify import SessionStatus
@@ -588,6 +589,8 @@ class MongoConnector(object):
                 )
              }
         }
+        debug_print_common("Update whole structure of progress.completed ("
+                           "workaround)", DEBUG["dev"])
         update_one_document(self.db.sessions, match, update)
 
         # Update test result
@@ -688,12 +691,30 @@ class MongoConnector(object):
             # from the plugin rather than the original source.
             tb = []
             for level in saved_result.traceback_link.formatted_traceback:
+                # Workaround for https://github.com/pytest-dev/pytest/pull/3560
+                locals_fixed = []
+                for k, v in level["locals"].items():
+                    if isinstance(v, CallInfo):
+                        if not hasattr(v, "result"):
+                            # CallInfo type object with no results attribute
+                            # FIXME create a pytest debug field
+                            debug_print_common("Error: Found CallInfo with no "
+                                               "result attribute (workaround)",
+                                               DEBUG["dev"])
+                            locals_fixed.append("{}: Error: CallInfo with no "
+                                                "result attribute".format(k))
+                        else:
+                            locals_fixed.append("{} :{}".format(k, v))
+
                 tb.append(dict(
                     location=level['location'],
                     code=level['code'],
-                    locals=["{}:{}".format(k, v) for k, v in level['locals']
-                            .items()]
-                ))
+                    # TODO restore when above defect is fixed
+                    # locals=["{}:{}".format(k, v) for k, v in level['locals']
+                    #         .items()],
+                    locals=locals_fixed
+                    )
+                )
             traceback = dict(
                 type=saved_result.traceback_link.exc_type.__name__,
                 tb=tb

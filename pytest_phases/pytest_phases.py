@@ -276,6 +276,8 @@ def pytest_fixture_setup(fixturedef, request):
     # Setting the phase, test_function, active_setups and test_fixtures is
     # done here (rather than in pytest_runtest_setup) as a workaround for
     # pytest bug https://github.com/pytest-dev/pytest/issues/3032
+    debug_print("Set phase, test, active setups, fixtures (workaround)",
+                DEBUG["dev"])
     SessionStatus.phase = "setup"
     test_name = request._pyfuncitem.name
     SessionStatus.test_function = test_name

@@ -24,6 +24,7 @@ class Outcomes(object):
     collect_error = "collection error"
     unknown = "Unknown result"
     in_progress = "in-progress"
+    pending = "pending"
 
 
 phase_map = {
@@ -68,7 +69,8 @@ hierarchy = (
     Outcomes.pytest_warning,
     Outcomes.collect_error,
     Outcomes.unknown,
-    Outcomes.in_progress
+    Outcomes.in_progress,
+    Outcomes.pending
 )
 
 
