@@ -472,6 +472,32 @@ class MongoConnector(object):
             debug_print("Updating session.runOrder outcome")
             update_one_document(self.db.sessions, match, update)
 
+    def _get_test_oids_in_fixture_scope(self, scope):
+        # For module or class scoped fixtures update all corresponding test
+        # outcomes and session.runOrder
+        if scope == "module":
+            doc = self.db.modules.find_one(
+                {"_id": self.module_oid},
+                # Projection
+                {"_id": 0, "moduleTests": 1, "classes.classTests": 1}
+            )
+            test_oids = doc["moduleTests"]
+            for class_doc in doc["classes"]:
+                test_oids.extend(class_doc["classTests"])
+            debug_print("All test oids in module:", prettify=test_oids)
+        elif scope == "class":
+            doc = self.db.modules.find_one(
+                {"_id": self.module_oid, "classes._id": self.class_oid},
+                # Projection
+                {"_id": 0, "classes.$": 1}
+            )
+            class_doc = doc["classes"][0]
+            test_oids = class_doc["classTests"]
+            debug_print("All test oids in class:", prettify=test_oids)
+        elif scope == "function":
+            test_oids = [self.test_oid]
+        return test_oids
+
     def update_fixture_teardown(self, name, outcome, summary, scope):
         match = {"_id": self.session_oid}
         # session progress
@@ -517,29 +543,9 @@ class MongoConnector(object):
         update_one_document(self.db.fixtures, match, update)
 
         # TODO session scoped fixtures
-        # For module or class scoped fixtures update all corresponding test
-        # outcomes and session.runOrder
-        if scope == "module":
-            doc = self.db.modules.find_one(
-                {"_id": self.module_oid},
-                # Projection
-                {"_id": 0, "moduleTests": 1, "classes.classTests": 1}
-            )
-            test_oids = doc["moduleTests"]
-            for class_doc in doc["classes"]:
-                test_oids.extend(class_doc["classTests"])
-            debug_print("All test oids in module:", prettify=test_oids)
-            self._update_tests_in_fixture_scope(test_oids, outcome)
-        elif scope == "class":
-            doc = self.db.modules.find_one(
-                {"_id": self.module_oid, "classes._id": self.class_oid},
-                # Projection
-                {"_id": 0, "classes.$": 1}
-            )
-            class_doc = doc["classes"][0]
-            test_oids = class_doc["classTests"]
-            debug_print("All test oids in class:", prettify=test_oids)
-            self._update_tests_in_fixture_scope(test_oids, outcome)
+
+        test_oids = self._get_test_oids_in_fixture_scope(scope)
+        self._update_tests_in_fixture_scope(test_oids, outcome)
 
     def update_teardown_phase(self):
         # Update the parent session progress
@@ -559,6 +565,8 @@ class MongoConnector(object):
             }
         }
         update_one_document(self.db.testresults, match, update)
+
+        # TODO Update session.runOrder to passed is is still pending
 
     def update_test_phase_complete(self, completed_phase, outcome, summary):
         # Update the parent session progress
