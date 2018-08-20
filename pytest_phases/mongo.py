@@ -429,6 +429,49 @@ class MongoConnector(object):
         # TODO update testresult.outcome.setup
         # TODO update session.runOrder.$.outcome
 
+    def _update_tests_in_fixture_scope(self, test_oids, fixture_outcome):
+        for test_oid in test_oids:
+            doc = self.db.testresults.find_one({"_id": test_oid})
+            debug_print("{} - teardown outcome initial: {}".format(
+                        doc["testName"], doc["outcome"]["teardown"]))
+            # Check if the teardown outcome requires updating.
+            debug_print("comparing with class fixture outcome: {}"
+                        .format(fixture_outcome))
+            teardown_outcome = doc["outcome"]["teardown"]
+            initial_index = hierarchy.index(teardown_outcome)
+            debug_print("Initial index = {}".format(initial_index))
+            if hierarchy.index(fixture_outcome) < initial_index:
+                debug_print("Teardown outcome update required")
+                teardown_outcome = fixture_outcome
+                update_teardown_outcome = True
+            else:
+                update_teardown_outcome = False
+            # Update the overall outcome, compare:
+            # doc["outcome"]["setup"], doc["outcome"]["call"],
+            # teardown_outcome
+            overall_index = min(hierarchy.index(doc["outcome"]["setup"]),
+                                hierarchy.index(doc["outcome"]["call"]),
+                                hierarchy.index(teardown_outcome))
+            overall_outcome = hierarchy[overall_index]
+            debug_print("Overall outcome: {} [{}]".format(overall_outcome,
+                                                          overall_index))
+            match = dict(_id=test_oid)
+            update = {"$set": {"outcome.overall": overall_outcome}}
+            if update_teardown_outcome:
+                update["$set"]["outcome.teardown"] = teardown_outcome
+            debug_print("Updating testresult.outcome.overall (and teardown if "
+                        "req)")
+            update_one_document(self.db.testresults, match, update)
+
+            # Update session.runOrder (Uses _id link in associated
+            # testresult).
+            run_order_oid = doc["runOrderId"]
+            match = {"_id": self.session_oid,
+                     "runOrder._id": run_order_oid}
+            update = {"$set": {"runOrder.$.outcome": overall_outcome}}
+            debug_print("Updating session.runOrder outcome")
+            update_one_document(self.db.sessions, match, update)
+
     def update_fixture_teardown(self, name, outcome, summary, scope):
         match = {"_id": self.session_oid}
         # session progress
@@ -473,46 +516,6 @@ class MongoConnector(object):
         update = {"$set": {"teardownOutcome": outcome}}
         update_one_document(self.db.fixtures, match, update)
 
-        def update_tests_in_scope(test_oids, fixture_outcome):
-            for test_oid in test_oids:
-                doc = self.db.testresults.find_one({"_id": test_oid})
-                print("{} - teardown outcome initial: {}".format(
-                    doc["testName"], doc["outcome"]["teardown"]))
-                # Check if the teardown outcome requires updating.
-                print("comparing with class fixture outcome: {}"
-                      .format(fixture_outcome))
-                teardown_outcome = doc["outcome"]["teardown"]
-                initial_index = hierarchy.index(teardown_outcome)
-                print("Initial index = {}".format(initial_index))
-                if hierarchy.index(fixture_outcome) < initial_index:
-                    print("Teardown outcome update required")
-                    teardown_outcome = fixture_outcome
-                    update_teardown_outcome = True
-                else:
-                    update_teardown_outcome = False
-                # Update the overall outcome, compare:
-                # doc["outcome"]["setup"], doc["outcome"]["call"],
-                # teardown_outcome
-                overall_index = min(hierarchy.index(doc["outcome"]["setup"]),
-                                    hierarchy.index(doc["outcome"]["call"]),
-                                    hierarchy.index(teardown_outcome))
-                overall_outcome = hierarchy[overall_index]
-                print("Overall outcome: {} [{}]".format(overall_outcome,
-                                                        overall_index))
-                match = dict(_id=test_oid)
-                update = {"$set": {"outcome.overall": overall_outcome}}
-                if update_teardown_outcome:
-                    update["$set"]["outcome.teardown"] = teardown_outcome
-                update_one_document(self.db.testresults, match, update)
-
-                # Update session.runOrder (Uses _id link in associated
-                # testresult).
-                run_order_oid = doc["runOrderId"]
-                match = {"_id": self.session_oid,
-                         "runOrder._id": run_order_oid}
-                update = {"runOrder.$.outcome": overall_outcome}
-                update_one_document(self.db.sessions, match, update)
-
         # TODO session scoped fixtures
         # For module or class scoped fixtures update all corresponding test
         # outcomes and session.runOrder
@@ -526,7 +529,7 @@ class MongoConnector(object):
             for class_doc in doc["classes"]:
                 test_oids.extend(class_doc["classTests"])
             debug_print("All test oids in module:", prettify=test_oids)
-            update_tests_in_scope(test_oids, outcome)
+            self._update_tests_in_fixture_scope(test_oids, outcome)
         elif scope == "class":
             doc = self.db.modules.find_one(
                 {"_id": self.module_oid, "classes._id": self.class_oid},
@@ -536,7 +539,7 @@ class MongoConnector(object):
             class_doc = doc["classes"][0]
             test_oids = class_doc["classTests"]
             debug_print("All test oids in class:", prettify=test_oids)
-            update_tests_in_scope(test_oids, outcome)
+            self._update_tests_in_fixture_scope(test_oids, outcome)
 
     def update_teardown_phase(self):
         # Update the parent session progress
