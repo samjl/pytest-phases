@@ -245,12 +245,24 @@ def pytest_runtest_setup(item):
     # if it is executed.
     SessionStatus.test_fixtures[item.name] = list(SessionStatus.active_setups)
 
-    current_log_index = get_current_index()
     # No logs are associated with the test until the testresult and
     # loglink documents are inserted below
+    # current_log_index = get_current_index()  # TODO
+
+    # Get any setup outcomes already completed and valid for this test:  class
+    # or module. scope. phase-results: not applicable for "function" scoped
+    # fixtures (run after this stage!).
+    res, summary, outcome = (SessionStatus.verifications.
+                             phase_summary_and_outcome("setup", None,
+                                                       function_scope=False))
+    # FIXME outcome returns passed if no setups already performed - should
+    # be None/in-progress/pending?
+
     SessionStatus.test_object_id = SessionStatus.mongo.init_test_result(
-        item.name, item.fixturenames[:-1], parents["class"], parents["module"]
+        item.name, item.fixturenames[:-1], parents["class"], parents["module"],
+        outcome
     )
+
     pytest.log.high_level_step("STARTING TEST {}".format(item.name))
 
     outcome = yield

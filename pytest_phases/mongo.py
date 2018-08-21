@@ -259,7 +259,7 @@ class MongoConnector(object):
 
     # TODO add log index
     def init_test_result(self, test_function, test_fixtures, new_class_name,
-                         new_module_name):
+                         new_module_name, setup_outcome):
         """
         Run for every test function @ pytest setup.
         Insert testresult document.
@@ -299,7 +299,7 @@ class MongoConnector(object):
                     moduleName=module_name,
                     className=class_name,
                     testName=test_function,
-                    outcome="pending",
+                    outcome=setup_outcome,
                     duration="pending"
                 )
             },
@@ -308,12 +308,13 @@ class MongoConnector(object):
              }
         }
         update_one_document(self.db.sessions, match, update)
+        if DEBUG["mongo"].enabled: time.sleep(1)
 
         log_link = dict(
-            sessionId=MongoConnector.session_id,    # FIXME not in last ver
-            className=class_name,                   # FIXME not in last ver
-            moduleName=module_name,                 # FIXME not in last ver
-            testName=test_function,                 # FIXME not in last ver
+            sessionId=MongoConnector.session_id,
+            className=class_name,
+            moduleName=module_name,
+            testName=test_function,
             logIds=[]
         )
         self.link_oid = insert_document(self.db.loglinks, log_link)
@@ -330,7 +331,8 @@ class MongoConnector(object):
             swVersion={},
             logLink=self.link_oid,
             outcome=dict(
-                setup="in-progress",
+                # Class, module scope setups already active.
+                setup=setup_outcome,
                 call="pending",
                 teardown="pending",
                 overall="pending"

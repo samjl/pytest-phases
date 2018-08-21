@@ -133,8 +133,9 @@ class Verifications(object):
         return self.filter_results(phase=phase, fixture_name=fixture_name,
                                    test_function=test_name)
 
-    def phase_summary_and_outcome(self, phase, result_category):
-        results = self.phase_results(phase)
+    def phase_summary_and_outcome(self, phase, result_category,
+                                  function_scope=True):
+        results = self.phase_results(phase, function_scope)
         summary = self._results_summary(results)
         debug_print("{} results summary:".format(phase.capitalize()),
                     prettify=summary)
@@ -149,7 +150,7 @@ class Verifications(object):
         ))
         return results, summary, phase_outcome(summary, result_category)
 
-    def phase_results(self, phase):
+    def phase_results(self, phase, function_scope=True):
         test = SessionStatus.test_function
         if phase == "call":
             # call only
@@ -164,9 +165,10 @@ class Verifications(object):
                 class_name = SessionStatus.class_name
                 results.extend(self.filter_results(phase=phase, scope="class",
                                                    class_name=class_name))
-            # function scope fixtures filter
-            results.extend(self.filter_results(phase=phase, scope="function",
-                                               test_function=test))
+            if function_scope:
+                # function scope fixtures filter
+                results.extend(self.filter_results(phase=phase, scope="function",
+                                                   test_function=test))
         return results
 
     def filter_results(self, test_function=None, phase=None, scope=None,
