@@ -137,6 +137,8 @@ fixture_outcome_conditionals = (
      Outcomes.expected_fail),
     (lambda s: True in [x in list(s.keys()) for x in ("A", "O", "F")],
      Outcomes.fail),
+    (lambda s: True in ["W" in list(s.keys())],
+     Outcomes.warning),
     (lambda s: True,
      Outcomes.passed)
 )
