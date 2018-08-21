@@ -167,7 +167,8 @@ class Verifications(object):
                                                    class_name=class_name))
             if function_scope:
                 # function scope fixtures filter
-                results.extend(self.filter_results(phase=phase, scope="function",
+                results.extend(self.filter_results(phase=phase,
+                                                   scope="function",
                                                    test_function=test))
         return results
 

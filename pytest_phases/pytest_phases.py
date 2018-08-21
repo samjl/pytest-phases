@@ -666,9 +666,11 @@ def pytest_report_teststatus(report):
     debug_print("result category: {}".format(result_category),
                 DEBUG["phases"])
     # Get the saved results, saved result summary and the phase outcome
-    results, summary, outcome = \
+    results, summary, outcome = (
         SessionStatus.verifications.phase_summary_and_outcome(report.when,
-                                                              result_category)
+                                                              result_category,
+                                                              False)
+    )
     SessionStatus.mongo.update_test_phase_complete(report.when, outcome,
                                                    summary)
 

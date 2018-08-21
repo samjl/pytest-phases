@@ -43,8 +43,10 @@ def find_one_document(collection, match):
         doc = collection.find_one(match)
     except Exception as e:
         print("Mongo Exception Caught: {}".format(str(e)))
+        return None
     else:
         debug_print("Found document:", prettify=doc)
+        return doc
 
 
 def insert_document(collection, entry):
@@ -435,12 +437,13 @@ class MongoConnector(object):
 
     def _update_tests_in_fixture_scope(self, test_oids, fixture_outcome,
                                        phase):
+        # TODO If progress.activeSetups
         for test_oid in test_oids:
-            doc = self.db.testresults.find_one({"_id": test_oid})
+            doc = find_one_document(self.db.testresults, {"_id": test_oid})
             debug_print("{} - {} outcome initial: {}".format(
                         doc["testName"], phase, doc["outcome"][phase]))
             # Check if the phase outcome requires updating.
-            debug_print("comparing with class fixture outcome: {}"
+            debug_print("comparing with fixture outcome: {}"
                         .format(fixture_outcome))
             phase_outcome = doc["outcome"][phase]
             initial_index = hierarchy.index(phase_outcome)
@@ -453,13 +456,17 @@ class MongoConnector(object):
             else:
                 update_phase_outcome = False
 
-            # Update the overall outcome, compare:
-            if phase == "teardown":
-                overall_index = min(hierarchy.index(doc["outcome"]["setup"]),
-                                    hierarchy.index(doc["outcome"]["call"]),
-                                    hierarchy.index(phase_outcome))
-            else:  # "setup" - call and teardown not yet executed
-                overall_index = hierarchy.index(phase_outcome)
+            # Update the overall outcome, compare all phases. Note that this
+            # checks the current fixture setup outcome against the current
+            # cumulative setup outcome.
+            debug_print("Phase outcomes:", prettify={
+                "setup": doc["outcome"]["setup"],
+                "call": doc["outcome"]["call"],
+                phase: phase_outcome  # could overwrite setup entry above
+            })
+            overall_index = min(hierarchy.index(doc["outcome"]["setup"]),
+                                hierarchy.index(doc["outcome"]["call"]),
+                                hierarchy.index(phase_outcome))
             overall_outcome = hierarchy[overall_index]
             debug_print("Overall outcome: {} [{}]".format(overall_outcome,
                                                           overall_index))
@@ -592,18 +599,36 @@ class MongoConnector(object):
                     outcome=outcome,
                     verifications=summary
                 )
-             }
+            }
         }
         debug_print_common("Update whole structure of progress.completed ("
                            "workaround)", DEBUG["dev"])
+
+        # Update phase outcome
+        doc = self.db.testresults.find_one({"_id": self.test_oid})
+        phase_outcome = doc["outcome"][completed_phase]
+        if hierarchy.index(outcome) < hierarchy.index(phase_outcome):
+            phase_outcome = outcome
+        # Update the overall test outcome
+        overall_outcome = doc["outcome"]["overall"]
+        if hierarchy.index(outcome) < hierarchy.index(overall_outcome):
+            overall_outcome = outcome
+            run_order_oid = doc["runOrderId"]
+            match = {"_id": self.session_oid,
+                     "runOrder._id": run_order_oid}
+            update["$set"]["runOrder.$.outcome"] = overall_outcome
+            debug_print("Updating session.runOrder outcome to {}"
+                        .format(overall_outcome))
+
         update_one_document(self.db.sessions, match, update)
 
         # Update test result
         match = {"_id": self.test_oid}
         update = {
             "$set": {
-                "outcome.{}".format(completed_phase): outcome
-                # update callSummary?
+                "outcome.{}".format(completed_phase): phase_outcome,
+                "outcome.overall": overall_outcome
+                # TODO update callSummary?
             }
         }
         update_one_document(self.db.testresults, match, update)
