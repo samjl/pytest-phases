@@ -301,6 +301,7 @@ class MongoConnector(object):
                     moduleName=module_name,
                     className=class_name,
                     testName=test_function,
+                    status="in-progress",
                     outcome=setup_outcome,
                     duration="pending"
                 )
@@ -332,6 +333,7 @@ class MongoConnector(object):
             fixtures=test_fixtures,
             swVersion={},
             logLink=self.link_oid,
+            status="in-progress",
             outcome=dict(
                 # Class, module scope setups already active.
                 setup=setup_outcome,
@@ -436,7 +438,7 @@ class MongoConnector(object):
         self._update_tests_in_fixture_scope([self.test_oid], outcome, "setup")
 
     def _update_tests_in_fixture_scope(self, test_oids, fixture_outcome,
-                                       phase):
+                                       phase, tests_complete=False):
         # TODO If progress.activeSetups
         for test_oid in test_oids:
             doc = find_one_document(self.db.testresults, {"_id": test_oid})
@@ -475,6 +477,10 @@ class MongoConnector(object):
             update = {"$set": {"outcome.overall": overall_outcome}}
             if update_phase_outcome:
                 update["$set"]["outcome.{}".format(phase)] = phase_outcome
+            # check phase just to be certain
+            if phase == "teardown" and tests_complete:
+                update["$set"]["status"] = "complete"
+
             debug_print("Updating testresult.outcome.overall (and {} if req)"
                         .format(phase))
             update_one_document(self.db.testresults, match, update)
@@ -484,6 +490,8 @@ class MongoConnector(object):
             match = {"_id": self.session_oid,
                      "runOrder._id": run_order_oid}
             update = {"$set": {"runOrder.$.outcome": overall_outcome}}
+            if phase == "teardown" and tests_complete:
+                update["$set"]["runOrder.$.status"] = "complete"
             debug_print("Updating session.runOrder outcome")
             update_one_document(self.db.sessions, match, update)
 
@@ -537,6 +545,7 @@ class MongoConnector(object):
         ]
         res = list(self.db.sessions.aggregate(pipeline))
         assert len(res) == 1, "Failed to get active setups for current session"
+        test_complete = False
         try:
             active = res[0]['progress']['activeSetups']
         except IndexError as e:
@@ -547,6 +556,11 @@ class MongoConnector(object):
             # remove first instance of fixture from reversed list
             active.remove(name)
             active.reverse()  # restore original order
+            # If active length is 0 - all teardowns are complete so mark
+            # test as complete.
+            if not active:
+                test_complete = True
+
         update_session["$set"].update({"progress.activeSetups": active})
 
         update_one_document(self.db.sessions, match, update_session)
@@ -558,7 +572,8 @@ class MongoConnector(object):
         update_one_document(self.db.fixtures, match, update)
 
         test_oids = self._get_test_oids_in_fixture_scope(scope)
-        self._update_tests_in_fixture_scope(test_oids, outcome, "teardown")
+        self._update_tests_in_fixture_scope(test_oids, outcome, "teardown",
+                                            test_complete)
 
     def update_teardown_phase(self):
         # Update the parent session progress
@@ -604,6 +619,9 @@ class MongoConnector(object):
         debug_print_common("Update whole structure of progress.completed ("
                            "workaround)", DEBUG["dev"])
 
+        # For tests that have no fixtures the phase outcomes, overall
+        # outcome and status (complete) need to be set here.
+
         # Update phase outcome
         doc = self.db.testresults.find_one({"_id": self.test_oid})
         phase_outcome = doc["outcome"][completed_phase]
@@ -611,16 +629,21 @@ class MongoConnector(object):
             phase_outcome = outcome
         # Update the overall test outcome
         overall_outcome = doc["outcome"]["overall"]
+        run_order_oid = doc["runOrderId"]
+        match = {"_id": self.session_oid,
+                 "runOrder._id": run_order_oid}
+        update = {}
         if hierarchy.index(outcome) < hierarchy.index(overall_outcome):
             overall_outcome = outcome
-            run_order_oid = doc["runOrderId"]
-            match = {"_id": self.session_oid,
-                     "runOrder._id": run_order_oid}
+            if "$set" not in update.keys(): update["$set"] = dict()
             update["$set"]["runOrder.$.outcome"] = overall_outcome
             debug_print("Updating session.runOrder outcome to {}"
                         .format(overall_outcome))
-
-        update_one_document(self.db.sessions, match, update)
+        if completed_phase == "teardown" and not SessionStatus.active_setups:
+            if "$set" not in update.keys(): update["$set"] = dict()
+            update["$set"]["runOrder.$.status"] = "complete"
+        if update:
+            update_one_document(self.db.sessions, match, update)
 
         # Update test result
         match = {"_id": self.test_oid}
@@ -631,6 +654,8 @@ class MongoConnector(object):
                 # TODO update callSummary?
             }
         }
+        if completed_phase == "teardown" and not SessionStatus.active_setups:
+            update["$set"]["status"] = "complete"
         update_one_document(self.db.testresults, match, update)
 
     def update_pre_call_phase(self):
