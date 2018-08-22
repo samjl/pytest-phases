@@ -692,6 +692,12 @@ def print_new_results(phase):
 
 
 @pytest.hookimpl(hookwrapper=True)
+def pytest_runtestloop(session):
+    res = yield
+    SessionStatus.mongo.update_session_complete()
+
+
+@pytest.hookimpl(hookwrapper=True)
 def pytest_terminal_summary(terminalreporter):
     """ override the terminal summary reporting. """
     debug_print("In pytest_terminal_summary", DEBUG["summary"])

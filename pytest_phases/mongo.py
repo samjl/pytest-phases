@@ -836,6 +836,10 @@ class MongoConnector(object):
         # warning condition (optional)
         # warning message (optional)
 
+    def update_session_complete(self):
+        update_one_document(self.db.sessions, dict(_id=self.session_oid),
+                            {"$set": dict(status="complete")})
+
 
 def escape_html(text):
     for char, replacement in (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"),
