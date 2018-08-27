@@ -599,7 +599,6 @@ class MongoConnector(object):
         match = {"_id": self.session_oid}
         update = {
             "$set": {
-                "progress.phase": None,  # TODO required?
                 # Workaround for mongo bug:
                 # https://jira.mongodb.org/browse/SERVER-21889
                 "progress.completed": dict(
@@ -616,9 +615,9 @@ class MongoConnector(object):
         }
         debug_print_common("Update whole structure of progress.completed ("
                            "workaround)", DEBUG["dev"])
-
         # For tests that have no fixtures the phase outcomes, overall
         # outcome and status (complete) need to be set here.
+        update_one_document(self.db.sessions, match, update)
 
         # Update phase outcome
         doc = self.db.testresults.find_one({"_id": self.test_oid})
