@@ -311,7 +311,6 @@ class MongoConnector(object):
              }
         }
         update_one_document(self.db.sessions, match, update)
-        if DEBUG["mongo"].enabled: time.sleep(1)
 
         log_link = dict(
             sessionId=MongoConnector.session_id,
@@ -564,7 +563,6 @@ class MongoConnector(object):
         update_session["$set"].update({"progress.activeSetups": active})
 
         update_one_document(self.db.sessions, match, update_session)
-        if DEBUG["mongo"].enabled: time.sleep(1)
 
         # Update fixture: teardownOutcome
         match = {"_id": self.fix_oid}
