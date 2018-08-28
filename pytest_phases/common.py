@@ -66,7 +66,10 @@ CONFIG = {"include-verify-local-vars":
                                   "test logs to"),
           "no-json":
           ConfigOption(bool, False, "Don't save log to JSON file (std out "
-                                    "only)")
+                                    "only)"),
+          "python-log-level":
+          ConfigOption(str, "NOTSET", "Python logging module level ("
+                                      "redirected to plugin log level 5)"),
           }
 
 

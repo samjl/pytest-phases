@@ -9,11 +9,13 @@
 #            lines after the addition on log level etc.
 from __future__ import absolute_import
 import json
+import logging
 import os
 import re
 import sys
 from builtins import object, str
 from collections import OrderedDict
+from .common import CONFIG
 from .loglevels import (
     get_current_level,
     get_current_step,
@@ -21,7 +23,8 @@ from .loglevels import (
     increment_level,
     is_level_set,
     set_level,
-    get_parents
+    get_parents,
+    set_log_parameters
 )
 from .verify import SessionStatus
 
@@ -31,6 +34,17 @@ def _is_start_or_end(msg):
     search = re.search("(={6}).*(begin|start|end|passed|failed|skipped)|"
                        "(-{6}).*(begin|start).*", msg.lower())
     return True if search is not None else False
+
+
+class LogRedirect(object):
+    def __init__(self):
+        pass
+
+    def write(self, msg):
+        set_log_parameters(msg, 5)
+
+    def isatty(self):
+        return False
 
 
 class LogOutputRedirection(object):
@@ -45,6 +59,23 @@ class LogOutputRedirection(object):
     def __init__(self):
         self.printStdout = sys.stdout
         self.printStderr = sys.stderr
+
+        # Redirect any messages from the python logging module.
+        # All (root) loggers.
+        root = logging.getLogger()
+        # Set log level to info (won't print debug level messages).
+        # logging_level = logging.NOTSET
+        logging_level = getattr(logging, CONFIG["python-log-level"].value)
+        root.setLevel(logging_level)
+        redirect = LogRedirect()
+        # To write directly as for print() use self rather than redirect.
+        ch = logging.StreamHandler(redirect)
+        ch.setLevel(logging_level)
+        # For a slightly more accurate timestamp can use the logging module,
+        # add: [%(asctime)s.%(msecs)03d]
+        frm = "%(name)s[%(levelname)-.5s]: %(message)s"
+        ch.setFormatter(logging.Formatter(frm))
+        root.addHandler(ch)
 
     def write(self, msg):
         if isinstance(msg, bytes):
