@@ -41,7 +41,9 @@ class LogRedirect(object):
         pass
 
     def write(self, msg):
-        set_log_parameters(msg, 5)
+        msg = msg.replace("\n", "")
+        if msg:
+            set_log_parameters(msg, 5)
 
     def isatty(self):
         return False
