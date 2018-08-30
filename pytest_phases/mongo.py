@@ -134,8 +134,8 @@ class MongoConnector(object):
         # increment session counter in db and use it for the session entry
         # "session_id": session_id (unique ObjectId for the _id)
         MongoConnector.session_id = self._get_session_id()
-        debug_print("Initialize test session {} in mongoDB"
-                    .format(MongoConnector.session_id))
+        print("Initialize test session {} in mongoDB {}".format(
+            MongoConnector.session_id, self.db.name))
         session = dict(
             devices=[],
             testVersion=dict(
