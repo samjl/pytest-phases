@@ -70,6 +70,30 @@ CONFIG = {"include-verify-local-vars":
           "python-log-level":
           ConfigOption(str, "NOTSET", "Python logging module level ("
                                       "redirected to plugin log level 5)"),
+          # Aviat specific options below
+          "sw-major":
+          ConfigOption(str, None, "Software under test major version"),
+          "sw-minor":
+          ConfigOption(str, None, "Software under test minor version"),
+          "sw-patch":
+          ConfigOption(str, None, "Software under test patch version"),
+          "sw-branch-name":
+          ConfigOption(str, None, "Software under test branch name"),
+          "sw-branch-number":
+          ConfigOption(str, None, "Software under test branch number"),
+          "sw-build-number":
+          ConfigOption(str, None, "Software under test build number"),
+          "release-type":
+          ConfigOption(str, "nightly", "Software release type"),
+          "test-sha":
+          ConfigOption(str, None, "cnet2 full sha of checked-out commit"),
+          "test-tag":
+          ConfigOption(str, None, "cnet2 checked-out commit associated tag"),
+          "test-branch":
+          ConfigOption(str, None, "cnet2 checked-out commit exists on these "
+                                  "branches"),
+          "test-submodules":
+          ConfigOption(str, None, "cnet2 checked out submodule commits"),
           }
 
 

@@ -16,7 +16,7 @@ from _pytest.runner import CallInfo
 from bson.objectid import ObjectId
 from .loglevels import MIN_LEVEL, MAX_LEVEL, get_parents
 from .verify import SessionStatus
-from .common import DEBUG
+from .common import DEBUG, CONFIG
 from .common import debug_print as debug_print_common
 from .outcomes import hierarchy
 standard_library.install_aliases()
@@ -136,24 +136,39 @@ class MongoConnector(object):
         MongoConnector.session_id = self._get_session_id()
         print("Initialize test session {} in mongoDB {}".format(
             MongoConnector.session_id, self.db.name))
+
+        branches = [x.strip() for x in CONFIG["test-branch"].value.split(",")]
+        submodules = [x.strip() for x in CONFIG["test-submodules"].value.
+                      split(",")]
+        test_version = dict(
+            tag=CONFIG["test-tag"].value if CONFIG["test-tag"].value else None,
+            sha=CONFIG["test-sha"].value if CONFIG["test-sha"].value else None,
+            branch=branches,
+            submodules=submodules
+        )
+        embedded_version = dict(
+            branchName=CONFIG["sw-branch-name"].value if CONFIG[
+                "sw-branch-name"].value else None,
+            buildNumber=CONFIG["sw-build-number"].value if CONFIG[
+                "sw-build-number"].value else None,
+        )
+        if CONFIG["release-type"].value:
+            embedded_version["type"] = CONFIG["release-type"].value
+        if CONFIG["sw-minor"].value:
+            embedded_version["minor"] = CONFIG["sw-minor"].value
+        if CONFIG["sw-branch-number"].value:
+            embedded_version["branchNumber"] = CONFIG["sw-branch-number"].value
+        if CONFIG["sw-major"].value:
+            embedded_version["major"] = CONFIG["sw-major"].value
+        if CONFIG["sw-patch"].value:
+            embedded_version["patch"] = CONFIG["sw-patch"].value
+
         session = dict(
             devices=[],
-            testVersion=dict(
-                tag=None,
-                sha=None,
-                branch="master"
-            ),
+            testVersion=test_version,
             plan="ObjectId link",
             sessionId=MongoConnector.session_id,
-            embeddedVersion=dict(
-                branchName="",
-                buildNumber=1234,
-                type="ER",
-                minor="",
-                branchNumber="",
-                major="",
-                patch=""
-            ),
+            embeddedVersion=embedded_version,
             status="in-progress",
             # pending/queued/in-progress/stalled/paused/complete
             progress=dict(
