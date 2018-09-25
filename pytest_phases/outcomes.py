@@ -10,6 +10,7 @@ class Outcomes(object):
     setup_skip = "setup skipped"
     skip = "skipped"
     teardown_skip = "teardown skipped"
+    error = "error"
     setup_error = "setup errored"
     fail = "failed"
     teardown_error = "teardown errored"
@@ -34,6 +35,8 @@ phase_map = {
                     "teardown": Outcomes.teardown_error},
     Outcomes.warning: {"setup": Outcomes.setup_warning,
                        "teardown": Outcomes.teardown_warning},
+    Outcomes.error: {"setup": Outcomes.setup_error,
+                     "teardown": Outcomes.teardown_error},
 }
 
 
@@ -57,6 +60,7 @@ hierarchy = (
     Outcomes.setup_skip,
     Outcomes.skip,
     Outcomes.teardown_skip,
+    Outcomes.error,
     Outcomes.setup_error,
     Outcomes.fail,
     Outcomes.teardown_error,
@@ -87,10 +91,11 @@ _plurals = {
     Outcomes.collect_error: "collection error"
 }
 
-
 # this list is hierarchical so order is important
 outcome_conditions = (
     (lambda o: o["pytest"]["type"] == "skipped", Outcomes.skip),
+    # Error required to catch things such as missing fixture
+    (lambda o: o["pytest"]["type"] == "error", Outcomes.error),
     (lambda o: o["pytest"]["type"] == "xfailed", Outcomes.expected_fail),
     (lambda o: o["pytest"]["type"] == "xpassed", Outcomes.unexpected_pass),
     (lambda o: True in [x in list(o["saved"].keys()) for x in ("A", "O", "F")],
@@ -114,6 +119,8 @@ outcome_conditions = (
 outcome_conditionals = (
     (lambda summary, pytest_result: pytest_result == "skipped",
      Outcomes.skip),
+    (lambda summary, pytest_result: pytest_result == "error",
+     Outcomes.error),
     (lambda summary, pytest_result: pytest_result == "xfailed",
      Outcomes.expected_fail),
     (lambda summary, pytest_result: pytest_result == "xpassed",
