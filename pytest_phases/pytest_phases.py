@@ -166,7 +166,7 @@ def pytest_collection_modifyitems(session, config, items):
     parser.read(os.path.join(config_path, "mongo.cfg"))
     web_app_host = parser.get("webapp", "host")
     web_app_port = parser.get("webapp", "port")
-    print("http://{}:{}/sessionId?session={}".format(
+    print("http://{}:{}/session?sessionIds={}".format(
         web_app_host, web_app_port, SessionStatus.mongo.session_id)
     )
 
