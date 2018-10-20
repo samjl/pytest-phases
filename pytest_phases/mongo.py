@@ -104,7 +104,7 @@ class MongoConnector(object):
             self.module_oid = None
             self.class_oid = None  # Generated embedded doc ObjectId
             self.test_oid = None
-            self.fix_oid = None
+            self.fix_oid = []
             self.link_oid = None
 
             if DROP_COLLECTIONS:
@@ -386,7 +386,7 @@ class MongoConnector(object):
             setupOutcome="in-progress",
             teardownOutcome="pending"
         )
-        self.fix_oid = insert_document(self.db.fixtures, fixture)
+        self.fix_oid.append(insert_document(self.db.fixtures, fixture))
 
         # Add fixture ObjectID link to parent (session.sessionFixtures,
         # modules.moduleFixtures, modules.classes.classFixtures or
@@ -394,7 +394,7 @@ class MongoConnector(object):
         if scope == "function":
             # add OId to testresult
             match = {"_id": self.test_oid}
-            update = {"$push": {"functionFixtures": self.fix_oid}}
+            update = {"$push": {"functionFixtures": self.fix_oid[-1]}}
             collection = self.db.testresults
         elif scope == "class":
             # Test parent is an existing class doc
@@ -402,15 +402,15 @@ class MongoConnector(object):
                 "_id": self.module_oid,
                 "classes": {"$elemMatch": {"_id": self.class_oid}}
             }
-            update = {"$push": {"classes.$.classFixtures": self.fix_oid}}
+            update = {"$push": {"classes.$.classFixtures": self.fix_oid[-1]}}
             collection = self.db.modules
         elif scope == "module":
             match = {"_id": self.module_oid}
-            update = {"$push": {"moduleFixtures": self.fix_oid}}
+            update = {"$push": {"moduleFixtures": self.fix_oid[-1]}}
             collection = self.db.modules
         elif scope == "session":
             match = {"_id": self.session_oid}
-            update = {"$push": {"sessionFixtures": self.fix_oid}}
+            update = {"$push": {"sessionFixtures": self.fix_oid[-1]}}
             collection = self.db.sessions
         else:
             raise AssertionError("Unknown fixture scope {}".format(scope))
@@ -443,7 +443,7 @@ class MongoConnector(object):
         # FIXME is this even required?
 
         # Update fixture: setupOutcome
-        match = {"_id": self.fix_oid}
+        match = {"_id": self.fix_oid[-1]}
         update = {"$set": {"setupOutcome": outcome}}
         update_one_document(self.db.fixtures, match, update)
 
@@ -580,7 +580,7 @@ class MongoConnector(object):
         update_one_document(self.db.sessions, match, update_session)
 
         # Update fixture: teardownOutcome
-        match = {"_id": self.fix_oid}
+        match = {"_id": self.fix_oid.pop()}
         update = {"$set": {"teardownOutcome": outcome}}
         update_one_document(self.db.fixtures, match, update)
 
@@ -790,7 +790,12 @@ class MongoConnector(object):
         else:
             verify_oid = None
 
+        # Get the current unix time
+        time_stamp = time.time()
+
         verify = dict(
+            timestamp=time_stamp,  # FIXME this is not the
+            # same as the timestamp saved with the log message
             level1Msg=saved_result.step,
             verifyMsg=saved_result.msg,
             status=saved_result.status,
@@ -820,7 +825,7 @@ class MongoConnector(object):
         if (saved_result.phase in ("setup", "teardown") and
                 saved_result.fixture_name and self.fix_oid):
             collection = self.db.fixtures
-            doc_oid = self.fix_oid
+            doc_oid = self.fix_oid[-1]
         elif (saved_result.phase == "call" and saved_result.test_function
               and self.test_oid):
             collection = self.db.testresults
@@ -830,7 +835,7 @@ class MongoConnector(object):
                                  "invalid parameters to define parent doc",
                                  saved_result.phase,
                                  saved_result.fixture_name,
-                                 self.fix_oid,
+                                 self.fix_oid[-1],
                                  saved_result.test_function,
                                  self.test_oid)
         update_one_document(collection,
