@@ -798,6 +798,7 @@ class MongoConnector(object):
             # same as the timestamp saved with the log message
             level1Msg=saved_result.step,
             verifyMsg=saved_result.msg,
+            indexMsg=saved_result.message_index,
             status=saved_result.status,
             type=saved_result.type_code,
             source=dict(

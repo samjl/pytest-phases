@@ -631,7 +631,11 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
     debug_print("saving: {}, {}".format(fixture_name, fixture_scope),
                 DEBUG["verify"])
 
-    # TODO refactor the saved_results format- make it an object
+    # Log failed and caught assertion (saved separately to db as
+    # verification below)
+    pytest.log.verification("{} - FAIL".format(exc_msg), exc_type)
+    index = get_current_index()
+    # Save the result and traceback
     s_res = SessionStatus.verifications.saved_results
     s_tb = SessionStatus.verifications.saved_tracebacks
     s_tb.append(FailureTraceback(raised_exc[0], raised_exc[2], trace_complete,
@@ -639,7 +643,8 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
     module_function_line = trace_complete[-1]["location"]
     result = Result(exc_msg, failure_type, exc_type, fixture_scope,
                     module_function_line, trace_complete[-1]["code"],
-                    True, source_locals=trace_complete[-1]["locals"],
+                    True, message_index=index,
+                    source_locals=trace_complete[-1]["locals"],
                     fail_traceback_link=s_tb[-1],
                     use_prev_teardown=use_prev_teardown)
     s_res.append(result)

@@ -38,6 +38,13 @@ class LogLevel(object):
         set_log_parameters(msg, log_level)
 
     @staticmethod
+    def verification(msg, result_type, log_level=None):
+        """Print a message relating to the result of the execution of
+        the verify function or a caught exception.
+        """
+        set_log_parameters(msg, log_level, message_type=result_type)
+
+    @staticmethod
     def step_increment(msg, increment=1):
         """Increment the current log level and print message at the
         new level.
@@ -118,7 +125,7 @@ def set_current_level(log_level):
     return MultiLevelLogging.current_level
 
 
-def set_log_parameters(msg, log_level):
+def set_log_parameters(msg, log_level, message_type=None):
     """Prepend the string to print with the log level and step before
     printing.
     """
@@ -129,6 +136,7 @@ def set_log_parameters(msg, log_level):
         MultiLevelLogging.current_l1_msg = msg
     step, index = get_next_step(valid_log_level)
     MultiLevelLogging.log_level_set = True
+    MultiLevelLogging.message_type = message_type
     if CONFIG["no-redirect"].value:
         # Don't print index as it doesn't mean much in this situation
         # (not every message is given an index)
@@ -148,6 +156,7 @@ class MultiLevelLogging(object):
     log_level_set = False
     current_l1_msg = None
     parent_indices = [None] * (MAX_LEVEL - MIN_LEVEL)
+    message_type = None
 
 
 def get_next_step(log_level):

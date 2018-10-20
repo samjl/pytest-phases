@@ -24,7 +24,8 @@ from .common import (
 from .common import debug_print as debug_print_common
 from .loglevels import (
     get_current_l1_msg,
-    get_current_level
+    get_current_level,
+    get_current_index
 )
 from .outcomes import (
     fixture_outcome_conditionals,
@@ -232,13 +233,14 @@ class Result(object):
     any other caught exceptions.
     """
     def __init__(self, message, status, type_code, scope, source_function,
-                 source_code, raise_immediately, source_locals=None,
-                 # fail_traceback_link=None, td=None):
-                 fail_traceback_link=None, use_prev_teardown=False):
+                 source_code, raise_immediately, message_index=None,
+                 source_locals=None, fail_traceback_link=None,
+                 use_prev_teardown=False):
         # Basic result information
         self.step = get_current_l1_msg()
         self.msg = message
         self.status = status
+        self.message_index = message_index
 
         # Additional result information
         # Type codes:
@@ -372,9 +374,11 @@ def perform_verification(fail_condition, fail_message, raise_immediately,
         verify_msg_log_level = 2
     else:
         verify_msg_log_level = log_level
-    pytest.log.step("{} - {}".format(msg, status), verify_msg_log_level)
+    # Log the verification (inserted as verification to db via _save_result)
+    pytest.log.verification("{} - {}".format(msg, status), exc_type, log_level=verify_msg_log_level)
+    index = get_current_index()
     _save_result(msg, status, exc_type, exc_tb, stop_at_test,
-                 full_method_trace, raise_immediately)
+                 full_method_trace, raise_immediately, index)
 
     if not fail_condition and raise_immediately:
         # Raise immediately
@@ -465,7 +469,7 @@ def trace_end_detected(func_call_line):
 
 
 def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
-                 full_method_trace, raise_immediately):
+                 full_method_trace, raise_immediately, message_index):
     """Save a result of verify/_verify.
     Items to save:
     Result object for all results, plus FailureTraceback object for results
@@ -525,6 +529,7 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
         failure_traceback = None
     result = Result(msg, status, type_code, fixture_scope,
                     source_function, source_call, raise_immediately,
+                    message_index=message_index,
                     source_locals=source_locals,
                     fail_traceback_link=failure_traceback)
     s_res.append(result)
