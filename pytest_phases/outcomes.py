@@ -91,11 +91,11 @@ _plurals = {
     Outcomes.collect_error: "collection error"
 }
 
+# FIXME remove
 # this list is hierarchical so order is important
 outcome_conditions = (
     (lambda o: o["pytest"]["type"] == "skipped", Outcomes.skip),
     # Error required to catch things such as missing fixture
-    (lambda o: o["pytest"]["type"] == "error", Outcomes.error),
     (lambda o: o["pytest"]["type"] == "xfailed", Outcomes.expected_fail),
     (lambda o: o["pytest"]["type"] == "xpassed", Outcomes.unexpected_pass),
     (lambda o: True in [x in list(o["saved"].keys()) for x in ("A", "O", "F")],
@@ -109,6 +109,7 @@ outcome_conditions = (
     # failure/warning in call (i.e. ignore the report)
     # FIXME how to catch any other conditions
 
+    (lambda o: o["pytest"]["type"] == "error", Outcomes.error),
     (lambda o: o["pytest"]["type"] == "failed", Outcomes.fail),
 
     (lambda o: True, Outcomes.passed)
@@ -119,8 +120,6 @@ outcome_conditions = (
 outcome_conditionals = (
     (lambda summary, pytest_result: pytest_result == "skipped",
      Outcomes.skip),
-    (lambda summary, pytest_result: pytest_result == "error",
-     Outcomes.error),
     (lambda summary, pytest_result: pytest_result == "xfailed",
      Outcomes.expected_fail),
     (lambda summary, pytest_result: pytest_result == "xpassed",
@@ -128,8 +127,11 @@ outcome_conditionals = (
     (lambda summary, pytest_result:
      True in [x in list(summary.keys()) for x in ("A", "O", "F")],
      Outcomes.fail),
-    (lambda summary, pytest_result: True in ["W" in list(summary.keys())],
+    (lambda summary, pytest_result:
+     True in ["W" in list(summary.keys())],
      Outcomes.warning),
+    (lambda summary, pytest_result: pytest_result == "error",
+     Outcomes.error),
     (lambda summary, pytest_result: pytest_result == "failed",
      Outcomes.fail),
     (lambda summary, pytest_result: True,
