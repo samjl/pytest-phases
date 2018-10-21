@@ -809,6 +809,7 @@ class MongoConnector(object):
             ),
             fullTraceback=verify_oid,
             immediate=saved_result.raise_immediately,
+            sessionId=MongoConnector.session_id,
             moduleName=saved_result.module,  # could use SessionStatus.module
             className=saved_result.class_name,  # SessionStatus.class_name
             testName=saved_result.test_function,  # SessionStatus.test_function
@@ -839,10 +840,12 @@ class MongoConnector(object):
                                  self.fix_oid[-1],
                                  saved_result.test_function,
                                  self.test_oid)
+        verification_oid = insert_document(self.db.verifications, verify)
+
         update_one_document(collection,
                             {"_id": doc_oid},
                             {"$push": {"{}Verifications".format(
-                                saved_result.phase): verify},
+                                saved_result.phase): verification_oid},
                              "$inc": {"{}Summary.{}".format(saved_result.phase,
                                 saved_result.type_code): 1}
                              })
