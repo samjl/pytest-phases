@@ -706,6 +706,10 @@ class MongoConnector(object):
         # TODO add? SessionStatus.class_name, SessionStatus.module,
         # SessionStatus.test_function, SessionStatus.test_fixtures
         msg = dict(
+            sessionId=self.session_id,
+            moduleName=SessionStatus.module,
+            className=SessionStatus.class_name,
+            testName=SessionStatus.test_function,
             index=index,
             level=level,
             step=step,
