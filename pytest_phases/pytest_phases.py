@@ -670,6 +670,11 @@ def _raise_first_saved_exc_type(type_to_raise):
 def pytest_report_teststatus(report):
     debug_print("TEST REPORT FOR {} PHASE: {}".format(report.when,
                 report.outcome), DEBUG["phases"])
+    # Update the test name for tests that don't have fixtures associated
+    # with them (no function scoped fixtures and no higher scoped fixtures
+    # associated with it by pytest (e.g. not first test in module or class).
+    test_name = report.location[-1].split('.')[-1]
+    SessionStatus.test_function = test_name
     result = yield
     # result-category, shortletter and verbose word for reporting
     # use result-category to detect xfail etc.
