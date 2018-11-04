@@ -384,7 +384,7 @@ def perform_verification(fail_condition, fail_message, raise_immediately,
         # Raise immediately
         set_saved_raised()
         raise_(exc_type, msg, exc_tb)
-    return True
+    return status, exc_type
 
 
 def _get_complete_traceback(stack, start_depth, stop_at_test,
