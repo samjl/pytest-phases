@@ -687,7 +687,7 @@ def pytest_report_teststatus(report):
     results, summary, outcome = (
         SessionStatus.verifications.phase_summary_and_outcome(report.when,
                                                               result_category,
-                                                              False)
+                                                              True)
     )
     SessionStatus.mongo.update_test_phase_complete(report.when, outcome,
                                                    summary)
