@@ -23,6 +23,7 @@ from .common import (
 )
 from .common import debug_print as debug_print_common
 from .loglevels import (
+    LogLevel,
     get_current_l1_msg,
     get_current_level,
     get_current_index
@@ -321,6 +322,16 @@ class FailureTraceback(object):
         self.result_link = None
 
 
+def verify(fail_condition, fail_message, raise_immediately=True,
+           warning=False, warn_condition=None, warn_message=None,
+           full_method_trace=False, stop_at_test=True, log_level=None):
+    """Perform a test verification."""
+    return perform_verification(fail_condition, fail_message,
+                                raise_immediately, warning,
+                                warn_condition, warn_message,
+                                full_method_trace, stop_at_test, log_level)
+
+
 def perform_verification(fail_condition, fail_message, raise_immediately,
                          warning, warn_condition, warn_message,
                          full_method_trace, stop_at_test, log_level):
@@ -375,7 +386,7 @@ def perform_verification(fail_condition, fail_message, raise_immediately,
     else:
         verify_msg_log_level = log_level
     # Log the verification (inserted as verification to db via _save_result)
-    pytest.log.verification("{} - {}".format(msg, status), exc_type, log_level=verify_msg_log_level)
+    LogLevel.verification("{} - {}".format(msg, status), exc_type, log_level=verify_msg_log_level)
     index = get_current_index()
     _save_result(msg, status, exc_type, exc_tb, stop_at_test,
                  full_method_trace, raise_immediately, index)
@@ -444,7 +455,7 @@ def _get_calling_func(stack, depth, stop_at_test, full_method_trace):
                 calling_frame_locals = dict(list(inspect.getargvalues(stack[depth]
                                             [0]).locals.items()))
             except Exception as e:
-                pytest.log.step("Failed to retrieve local variables for {}".
+                LogLevel.step("Failed to retrieve local variables for {}".
                                 format(module_line_parent), log_level=5)
                 debug_print("{}".format(str(e)))
         if full_method_trace:
@@ -603,7 +614,7 @@ def print_saved_results(column_key_order="Step"):
     if len(to_print) > 0:
         _get_val_lengths(to_print, key_val_lengths)
         headings = _get_key_lengths(key_val_lengths)
-        pytest.log.high_level_step("Saved results")
+        LogLevel.high_level_step("Saved results")
         _print_headings(to_print[0], headings, key_val_lengths,
                         column_key_order)
         for i, result in enumerate(to_print):
@@ -625,17 +636,17 @@ def _print_result(result, traceback, key_val_lengths, column_key_order):
             val = result[key]
             line += '| {0:^{width}} '.format(str(val), width=length)
     line += "|"
-    pytest.log.detail_step(line)
+    LogLevel.detail_step(line)
     # If result has a linked traceback object then print it at log level 3.
     if traceback:
         for level in traceback.formatted_traceback:
-            pytest.log.step(level['location'], log_level=3)
+            LogLevel.step(level['location'], log_level=3)
             if level['locals']:
                 local_vars = ["{}: {}".format(k, v) for k, v in level[
                     'locals'].items() if not k.startswith("@py_")]
-                pytest.log.step(", ".join(local_vars), log_level=3)
-            pytest.log.step("\n".join(level['code']), log_level=3)
-        pytest.log.step("{}: {}".format(traceback.exc_type.__name__,
+                LogLevel.step(", ".join(local_vars), log_level=3)
+            LogLevel.step("\n".join(level['code']), log_level=3)
+        LogLevel.step("{}: {}".format(traceback.exc_type.__name__,
                                         traceback.result_link.msg),
                         log_level=3)
 
@@ -719,7 +730,7 @@ def _print_headings(first_result, headings, key_val_lengths,
     # dictionaries stored in saved_results).
     lines = ["", "", ""]
     line_length = _get_line_length(key_val_lengths)
-    # pytest.log.detail_step("_" * line_length)
+    # LogLevel.detail_step("_" * line_length)
     print("_" * line_length)  # DEBUG
     for key in column_key_order:
         field_length = key_val_lengths[key]
@@ -740,5 +751,5 @@ def _print_headings(first_result, headings, key_val_lengths,
             lines[2] += ('|-' + '-'*field_length + '-')
     for line in lines:
         line += "|"
-        # pytest.log.detail_step(line)
+        # LogLevel.detail_step(line)
         print(line)

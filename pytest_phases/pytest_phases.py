@@ -271,7 +271,7 @@ def pytest_runtest_setup(item):
         outcome
     )
 
-    pytest.log.high_level_step("STARTING TEST {}".format(item.name))
+    LogLevel.high_level_step("STARTING TEST {}".format(item.name))
 
     outcome = yield
     debug_print("Test SETUP - Complete {}, outcome: {}".format(item, outcome),
@@ -633,7 +633,7 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
 
     # Log failed and caught assertion (saved separately to db as
     # verification below)
-    pytest.log.verification("{} - FAIL".format(exc_msg), exc_type)
+    LogLevel.verification("{} - FAIL".format(exc_msg), exc_type)
     index = get_current_index()
     # Save the result and traceback
     s_res = SessionStatus.verifications.saved_results
@@ -885,12 +885,12 @@ def pytest_terminal_summary(terminalreporter):
             summary_results[test_result["overall"]] += 1
 
     for test_function, fixture_results in test_results.items():
-        pytest.log.high_level_step("Summary of results for test {}, overall: "
+        LogLevel.high_level_step("Summary of results for test {}, overall: "
                                    "{}".format(test_function,
                                                fixture_results["overall"]))
         for phase in ("setup", "call", "teardown"):
             if phase == "setup":
-                pytest.log.detail_step(
+                LogLevel.detail_step(
                     "Setup ({0}), overall: {1[result]}, saved results: "
                     "{1[saved]}".format(test_function,
                                         fixture_results[phase]["overall"]))
@@ -898,13 +898,13 @@ def pytest_terminal_summary(terminalreporter):
                     for fixture_name, results in fixture_results[phase][scope]\
                             .items():
                         results_id = [hex(id(x))[-4:] for x in results[0:-1]]
-                        pytest.log.step("Fixture {} (scope: {}) saved results:"
+                        LogLevel.step("Fixture {} (scope: {}) saved results:"
                                         " {}".format(fixture_name, scope,
                                                     results[-1]),
                                         log_level=3)
                         debug_print(results_id, DEBUG["summary"])
             elif phase == "teardown":
-                pytest.log.detail_step(
+                LogLevel.detail_step(
                     "Teardown ({0}), overall: {1[result]}, saved results: "
                     "{1[saved]}".format(test_function,
                                         fixture_results[phase]["overall"]))
@@ -912,13 +912,13 @@ def pytest_terminal_summary(terminalreporter):
                     for fixture_name, results in fixture_results[phase][scope]\
                             .items():
                         results_id = [hex(id(x))[-4:] for x in results[0:-1]]
-                        pytest.log.step("Fixture {} (scope: {}) saved results:"
+                        LogLevel.step("Fixture {} (scope: {}) saved results:"
                                         " {}".format(fixture_name, scope,
                                                     results[-1]),
                                         log_level=3)
                         debug_print(results_id, DEBUG["summary"])
             elif phase == "call":
-                pytest.log.detail_step(
+                LogLevel.detail_step(
                     "Call (test function {0}), overall: {1[result]}, saved "
                     "results: {1[saved]}".format(test_function,
                                                  fixture_results[phase][
@@ -943,13 +943,13 @@ def pytest_terminal_summary(terminalreporter):
         lines.append("PYTEST-WARNING {} {}".format(report.nodeid,
                                                    report.message))
     if lines:
-        pytest.log.high_level_step("collection error, skip, xFail/xPass and "
+        LogLevel.high_level_step("collection error, skip, xFail/xPass and "
                                    "pytest-warning reasons (short test summary "
                                    "info)")
         for line in lines:
-            pytest.log.detail_step(line)
+            LogLevel.detail_step(line)
     else:
-        pytest.log.high_level_step("No collection errors, skips, xFail/xPass or "
+        LogLevel.high_level_step("No collection errors, skips, xFail/xPass or "
                                    "pytest-warnings")
 
     session_duration = time.time() - terminalreporter._sessionstarttime
@@ -969,7 +969,7 @@ def pytest_terminal_summary(terminalreporter):
                                            outcome_message))
     summary_line = "{0} in {1:.2f}s".format(", ".join(outcomes),
                                             session_duration)
-    pytest.log.high_level_step(summary_line)
+    LogLevel.high_level_step(summary_line)
 
     # # DEBUG ONLY
     # # Passes never seems to print anything - no summary?
@@ -1050,19 +1050,3 @@ def _filter_fixture(results):
         f_res_summary = _results_summary(fix_results)
         results_by_fixture[fix_name].append(f_res_summary)
     return results_by_fixture
-
-
-# TODO check if all these are required in the namespace
-def pytest_namespace():
-    # Add verify functions to the pytest namespace
-    def verify(fail_condition, fail_message, raise_immediately=True,
-               warning=False, warn_condition=None, warn_message=None,
-               full_method_trace=False, stop_at_test=True, log_level=None):
-        """Print a message at the highest log level."""
-        perform_verification(fail_condition, fail_message, raise_immediately,
-                             warning, warn_condition, warn_message,
-                             full_method_trace, stop_at_test, log_level)
-
-    name = {"log": LogLevel,
-            "verify": verify}
-    return name
