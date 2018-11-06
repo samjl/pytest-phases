@@ -339,35 +339,35 @@ def perform_verification(fail_condition, fail_message, raise_immediately,
             raise WarningException()
         except WarningException:
             traceback = sys.exc_info()[2]
-        return "WARNING", WarningException, traceback
+        return False, "WARNING", WarningException, traceback
 
     def failure_init():
         try:
             raise VerificationException()
         except VerificationException:
             traceback = sys.exc_info()[2]
-        return "FAIL", VerificationException, traceback
+        return False, "FAIL", VerificationException, traceback
 
     def pass_init():
-        return "PASS", None, None
+        return True, "PASS", None, None
 
     if not fail_condition:
         msg = fail_message
         if warning:
-            status, exc_type, exc_tb = warning_init()
+            simple, status, exc_type, exc_tb = warning_init()
         else:
-            status, exc_type, exc_tb = failure_init()
+            simple, status, exc_type, exc_tb = failure_init()
     elif warn_condition is not None:
         if not warn_condition:
-            status, exc_type, exc_tb = warning_init()
+            simple, status, exc_type, exc_tb = warning_init()
             msg = warn_message
         else:
             # Passed
-            status, exc_type, exc_tb = pass_init()
+            simple, status, exc_type, exc_tb = pass_init()
             msg = fail_message
     else:
         # Passed
-        status, exc_type, exc_tb = pass_init()
+        simple, status, exc_type, exc_tb = pass_init()
         msg = fail_message
 
     if not log_level and get_current_level() == 1:
@@ -384,7 +384,13 @@ def perform_verification(fail_condition, fail_message, raise_immediately,
         # Raise immediately
         set_saved_raised()
         raise_(exc_type, msg, exc_tb)
-    return status, exc_type
+    # For all but failed verifications immediately raised return:
+    # simple - boolean status for simple verification result checking (where
+    #  pass is True and Warning/Fail is False).
+    # status - string result status ("PASS"/"FAIL"/"WARNING").
+    # exc_type - the class of the raised exception (None for passed
+    # verifications).
+    return simple, status, exc_type
 
 
 def _get_complete_traceback(stack, start_depth, stop_at_test,
