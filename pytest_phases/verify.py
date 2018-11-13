@@ -9,7 +9,6 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 import inspect
-import pytest
 import re
 import sys
 from _pytest.fixtures import FixtureDef  # requires pytest version>=3.0.0
@@ -96,7 +95,8 @@ class Verifications(object):
         return results, summary, outcome
 
     def fixture_teardown_raise_saved(self, fixture_name, test_name):
-        results, summary, outcome = self.fixture_teardown_results(fixture_name, test_name)
+        results, summary, outcome = self.fixture_teardown_results(fixture_name,
+                                                                  test_name)
         self.raise_exc_type(results, VerificationException)
         self.raise_exc_type(results, WarningException)
         return results, summary, outcome
@@ -221,6 +221,7 @@ class SessionStatus(object):
     class_name = None  # Parent class of current test if applicable
     prev_teardown = None  # Track the most recently completed teardown
     # fixture so it can be assigned to any regular assertions raised
+    test_outcome = {}
 
     # MongoDB
     mongo = None
@@ -342,7 +343,9 @@ def perform_verification(fail_condition, fail_message, raise_immediately,
         raise_immediately = False
 
     debug_print("Performing verification")
-    debug_print("Locals: {}".format(inspect.getargvalues(inspect.stack()[1][0]).locals))
+    debug_print("Locals: {}".format(
+        inspect.getargvalues(inspect.stack()[1][0]).locals)
+    )
 
     def warning_init():
         debug_print("WARNING (fail_condition)")
@@ -386,7 +389,8 @@ def perform_verification(fail_condition, fail_message, raise_immediately,
     else:
         verify_msg_log_level = log_level
     # Log the verification (inserted as verification to db via _save_result)
-    LogLevel.verification("{} - {}".format(msg, status), exc_type, log_level=verify_msg_log_level)
+    LogLevel.verification("{} - {}".format(msg, status), exc_type,
+                          log_level=verify_msg_log_level)
     index = get_current_index()
     _save_result(msg, status, exc_type, exc_tb, stop_at_test,
                  full_method_trace, raise_immediately, index)
@@ -449,14 +453,12 @@ def _get_calling_func(stack, depth, stop_at_test, full_method_trace):
         if CONFIG["include-verify-local-vars"].value\
                 or CONFIG["include-all-local-vars"].value:
             try:
-                # args = inspect.getargvalues(stack[depth][0]).locals.items()
-                # calling_frame_locals = (", ".join("{}: {}".format(k, v)
-                #                         for k, v in args))
-                calling_frame_locals = dict(list(inspect.getargvalues(stack[depth]
-                                            [0]).locals.items()))
+                calling_frame_locals = dict(list(
+                    inspect.getargvalues(stack[depth][0]).locals.items()
+                ))
             except Exception as e:
-                LogLevel.step("Failed to retrieve local variables for {}".
-                                format(module_line_parent), log_level=5)
+                LogLevel.step("Failed to retrieve local variables for {}"
+                              .format(module_line_parent), log_level=5)
                 debug_print("{}".format(str(e)))
         if full_method_trace:
             for lineNumber in range(0, call_line_number - func_line_number):
@@ -496,7 +498,6 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
     depth = 3
 
     debug_print("Saving a result of verify function")
-    fixture_name = None
     fixture_scope = None
     if SessionStatus.phase != "call":
         for d in range(depth, depth+6):  # TODO use max tb depth?
@@ -552,6 +553,7 @@ def _save_result(msg, status, exc_type, exc_tb, stop_at_test,
     s_res.append(result)
     SessionStatus.mongo.insert_verification(result)
     if type_code == "F" or type_code == "W":
+        # Update the reference link from the traceback to the result
         s_tb[-1].result_link = s_res[-1]
 
 
@@ -570,16 +572,18 @@ def _get_call_source(func_source, func_call_source_line, call_line_number,
     left = 0
     right = 0
 
-    def _parentheses_count(left, right, line):
-        left += line.count("(")
-        right += line.count(")")
-        return left, right
+    def _parentheses_count(open_parenthesis, close_parenthesis, line):
+        open_parenthesis += line.count("(")
+        close_parenthesis += line.count(")")
+        return open_parenthesis, close_parenthesis
     left, right = _parentheses_count(left, right,
                                      func_call_source_line)
     preceding_line_index = call_line_number - func_line_number - 1
 
-    while left != right and preceding_line_index > call_line_number - func_line_number - 10:
-        source_line = re.sub('[\r\n]', '', func_source[0][preceding_line_index])
+    while (left != right and preceding_line_index > call_line_number -
+           func_line_number - 10):
+        source_line = re.sub('[\r\n]', '',
+                             func_source[0][preceding_line_index])
         trace_level.insert(0, source_line)
         left, right = _parentheses_count(left, right,
                                          func_source[0][preceding_line_index])
@@ -590,14 +594,16 @@ def _get_call_source(func_source, func_call_source_line, call_line_number,
     return trace_level
 
 
-def print_saved_results(column_key_order="Step"):
-    """Format the saved results as a table and print.
+def print_results(saved_verifications, column_key_order="Step",
+                  alternative_title=None):
+    """Format a list of saved results as a table and print.
     The results are printed in the order they were saved.
+    saved_verifications -- list of saved Result objects.
     Keyword arguments:
-    column_key_order -- specify the column order. Default is to simply
-    print the "Step" (top level message) first.
-    extra_info -- print an extra column containing the "Extra Info" field
-    values.
+    column_key_order -- specify the column order. Default is to have
+    "Step" (top level message) in the first column.
+    alternative_title -- An optional alternative title for the results
+    table. The default title is 'Saved Results'.
     """
     if not isinstance(column_key_order, (tuple, list)):
         column_key_order = [column_key_order]
@@ -606,7 +612,7 @@ def print_saved_results(column_key_order="Step"):
 
     to_print = []
     tb_links = []
-    for saved_result in SessionStatus.verifications.saved_results:
+    for saved_result in saved_verifications:
         to_print.append(saved_result.formatted_dict())
         tb_links.append(saved_result.traceback_link)
 
@@ -614,12 +620,29 @@ def print_saved_results(column_key_order="Step"):
     if len(to_print) > 0:
         _get_val_lengths(to_print, key_val_lengths)
         headings = _get_key_lengths(key_val_lengths)
-        LogLevel.high_level_step("Saved results")
+        if alternative_title:
+            LogLevel.high_level_step(alternative_title)
+        else:
+            LogLevel.high_level_step("Saved results")
         _print_headings(to_print[0], headings, key_val_lengths,
                         column_key_order)
         for i, result in enumerate(to_print):
             _print_result(result, tb_links[i], key_val_lengths,
                           column_key_order)
+
+
+def print_saved_results(column_key_order="Step", alternative_title=None):
+    """Format all the saved results as a table and print.
+    The results are printed in the order they were saved.
+    Keyword arguments:
+    column_key_order -- specify the column order. Default is to have
+    "Step" (top level message) in the first column.
+    alternative_title -- An optional alternative title for the results
+    table. The default title is 'Saved Results'.
+    """
+    print_results(SessionStatus.verifications.saved_results,
+                  column_key_order=column_key_order,
+                  alternative_title=alternative_title)
 
 
 def _print_result(result, traceback, key_val_lengths, column_key_order):
@@ -647,8 +670,8 @@ def _print_result(result, traceback, key_val_lengths, column_key_order):
                 LogLevel.step(", ".join(local_vars), log_level=3)
             LogLevel.step("\n".join(level['code']), log_level=3)
         LogLevel.step("{}: {}".format(traceback.exc_type.__name__,
-                                        traceback.result_link.msg),
-                        log_level=3)
+                                      traceback.result_link.msg),
+                      log_level=3)
 
 
 def _get_val_lengths(saved_results, key_val_lengths):
@@ -687,7 +710,7 @@ def _get_key_lengths(key_val_lengths):
                 space_indices.extend(slash_indices)
                 debug_print_common("key can be split @ {}".format(
                     space_indices), DEBUG["print-saved"])
-                key_centre_index = int(old_div(len(key),2))
+                key_centre_index = int(old_div(len(key), 2))
                 split_index = min(space_indices, key=lambda x: abs(
                     x - key_centre_index))
                 debug_print_common('The closest index to the middle ({}) is {}'
