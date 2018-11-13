@@ -10,9 +10,8 @@ import os
 import pkg_resources
 import pytest
 import sys
-import time
 import traceback
-from builtins import hex, str
+from builtins import str
 try:
     # Python 3 - module name changed for PEP8 compliance
     from configparser import ConfigParser
@@ -48,7 +47,7 @@ from .mongo import MongoConnector
 from .outcomes import (
     Outcomes,
     plural,
-    outcome_conditions,
+    outcome_conditionals,
     phase_specific_result,
     hierarchy
 )
@@ -56,13 +55,11 @@ from .outputredirect import LogOutputRedirection  # FIXME replace with get
 from .verify import (
     VerificationException,
     WarningException,
-    Verifications,
     FailureTraceback,
     Result,
-    perform_verification,
     set_saved_raised,
     trace_end_detected,
-    print_saved_results,
+    print_results,
     SessionStatus
 )
 standard_library.install_aliases()
@@ -197,9 +194,12 @@ def pytest_runtest_setup(item):
     debug_print("Test {0.name} SETUP has fixtures: {0.fixturenames}".format(
         item), DEBUG["scopes"])
 
-    # SessionStatus.session = None
-    # SessionStatus.class_name = None # TODO Not sure why these were here
-    # SessionStatus.module = None     # and the effect of removing them?
+    # Set the initial test phase outcomes
+    SessionStatus.test_outcome[item.name] = {
+        "setup": Outcomes.pending,
+        "call": Outcomes.pending,
+        "teardown": Outcomes.pending
+    }
 
     def get_module_class(item, new_parents):
         """
@@ -320,9 +320,6 @@ def pytest_fixture_setup(fixturedef, request):
     SessionStatus.test_fixtures[SessionStatus.test_function] = \
         list(SessionStatus.active_setups)
     SessionStatus.exec_func_fix = setup_args
-    # SessionStatus.mongo.update_test_result(
-    #     {"_id": SessionStatus.test_object_id},
-    #     {"$set": {"fixtures": SessionStatus.test_fixtures[SessionStatus.test_function]}})
     SessionStatus.mongo.init_fixture(fixture_name, fixturedef.scope)
 
     res = yield
@@ -347,17 +344,17 @@ def pytest_fixture_setup(fixturedef, request):
     results, summary, outcome = (SessionStatus.verifications.
                                  fixture_setup_results(fixture_name,
                                                        test_name))
-
     SessionStatus.mongo.update_fixture_setup(fixture_name, outcome, summary)
-
+    # Raise (first) failed verification saved during setup phase or
     SessionStatus.verifications.raise_exc_type(results, VerificationException)
+    # else raise (first) warned verification saved during setup phase
     SessionStatus.verifications.raise_exc_type(results, WarningException)
 
 
 # Introduced in pytest 3.0.0
 @pytest.hookimpl(hookwrapper=True)
 def pytest_fixture_post_finalizer(fixturedef, request):
-    # FIXME check that the phase is teardown
+    # FIXME check that the current set phase is teardown
     debug_print("Fixture TEARDOWN for {0.argname} with {0.scope} scope"
                 .format(fixturedef), DEBUG["scopes"])
 
@@ -367,7 +364,7 @@ def pytest_fixture_post_finalizer(fixturedef, request):
     debug_print("Fixture teardown exc_info: {}".format(exc_info),
                 DEBUG["scopes"])
     if exc_info:
-        # An exception was raised by the fixture setup
+        # An exception was raised by the fixture teardown
         # debug_print("{}".format(exc_info[0].__dict__), DEBUG["scopes"])
         if exc_info[0] not in (WarningException, VerificationException, None):
             # Cover case of exc_info being (None, None, None)
@@ -400,6 +397,8 @@ def pytest_fixture_post_finalizer(fixturedef, request):
     except ValueError as e:
         debug_print("Could not remove fixture from active setups (probably "
                     "removed already) - {}".format(e), DEBUG["scopes"])
+    except Exception as e:
+        print(str(e))
     else:
         SessionStatus.mongo.update_fixture_teardown(fixturedef.argname,
                                                     outcome, summary, scope)
@@ -480,9 +479,7 @@ def pytest_runtest_teardown(item, nextitem):
     outcome = yield
     debug_print("Test TEARDOWN - completed {}, outcome: {}".format(item,
                 outcome), DEBUG["phases"])
-
-    raised_exc = outcome.excinfo
-    debug_print("Test TEARDOWN - Raised exception: {}".format(raised_exc),
+    debug_print("Test TEARDOWN - Raised exception: {}".format(outcome.excinfo),
                 DEBUG["phases"])
 
 
@@ -633,280 +630,128 @@ def pytest_report_teststatus(report):
     debug_print("result category: {}".format(result_category),
                 DEBUG["phases"])
     # Get the saved results, saved result summary and the phase outcome
-    results, summary, outcome = (
+    teardown_results, summary, outcome = (
         SessionStatus.verifications.phase_summary_and_outcome(report.when,
                                                               result_category,
                                                               True)
     )
+    SessionStatus.test_outcome[test_name][report.when] = outcome
     SessionStatus.mongo.update_test_phase_complete(report.when, outcome,
                                                    summary)
+    # TODO process the duration per phase - report.duration
+    # Possible TODO print saved results for each phase - limited use because
+    # teardown results cannot be complete for all tests
 
     if report.when == "teardown":
-        # FIXME this is just for a single test
-        debug_print("OUTPUTREDIRECT LAST TEARDOWN MESSAGE",
-                    DEBUG["output-redirect"])
+        # For end of each test
         LogOutputRedirection.test_file_path = None
+        # Update the overall test result
+        index = len(hierarchy) - 1
+        debug_print("Initial outcome is {}".format(hierarchy[index]),
+                    DEBUG['phases'])
+        for phase_outcome in (SessionStatus.test_outcome[test_name]["setup"],
+                              SessionStatus.test_outcome[test_name]["call"],
+                              SessionStatus.test_outcome[test_name]["teardown"]):
+            phase_outcome_index = hierarchy.index(phase_outcome)
+            if phase_outcome_index < index:
+                index = phase_outcome_index
+        # TODO not preliminary if result is failed
+        debug_print("Preliminary test outcome is {}".format(hierarchy[index]),
+                    DEBUG['phases'])
+        # TODO Print phase results at higher level
+        LogLevel.high_level_step("Preliminary test outcome is {}".format(hierarchy[index]))
+        LogLevel.detail_step("Note: doesn't include the result of any higher "
+                             "scoped teardown functions.")
+
+        # Reset the test name as it is now complete
+        SessionStatus.test_function = None
+
+        if not SessionStatus.active_setups:
+            # At end of a test module. This assumes that we are not using
+            # (or are concerned) about any session scoped fixtures.
+            # FIXME or would print for all tests that have no fixtures!
+            summary = final_test_outcomes()
+            module_saved_results(SessionStatus.module)
+            final_summary(summary)
+            # Clear the run order now that the results have been updated
+            # and printed
+            SessionStatus.run_order = []
 
 
-def print_new_results(phase):
-    for i, s_res in enumerate(SessionStatus.verifications.saved_results):
-        res_info = s_res["Extra Info"]
-        if res_info.phase == phase and not res_info.printed:
-            debug_print("Valid result ({}) found with info: {}"
-                        .format(i, res_info.format_result_info()),
-                        DEBUG["scopes"])
-            res_info.printed = True
-
-
-@pytest.hookimpl(hookwrapper=True)
-def pytest_runtestloop(session):
-    res = yield
-    SessionStatus.mongo.update_session_complete()
-
-
-@pytest.hookimpl(hookwrapper=True)
-def pytest_terminal_summary(terminalreporter):
-    """ override the terminal summary reporting. """
-    debug_print("In pytest_terminal_summary", DEBUG["summary"])
-    if DEBUG["summary"]:
-        debug_print("Run order:", DEBUG["summary"])
-        for module_class_function in SessionStatus.run_order:
-            debug_print("{0[0]}::{0[1]}::{0[2]}".format(module_class_function),
-                        DEBUG["summary"])
-
-    # if DEBUG["verify"]:
-    #     print "Saved Results (dictionaries)"
-    #     for i, res in enumerate(Verifications.saved_results):
-    #         print "{} - {}".format(i, res.__dict__)
-    #     print "Saved Tracebacks (dictionaries)"
-    #     for i, tb in enumerate(Verifications.saved_tracebacks):
-    #         print "{} - {}".format(i, tb.__dict__)
-
-    if DEBUG["verify"]:
-        for saved_tb in SessionStatus.verifications.saved_tracebacks:
-            debug_print("Result {0.result_link} linked to traceback {0}"
-                        .format(saved_tb), DEBUG["verify"])
-
-    # Retrieve the saved results and traceback info for any failed
-    # verifications.
-    # Results table
-    print_saved_results()
-
-    debug_print("Test function fixture dependencies:", DEBUG["summary"])
-    for test_name, setup_fixtures in SessionStatus.test_fixtures.items():
-        debug_print("{} depends on setup fixtures: {}"
-                    .format(test_name, ", ".join(setup_fixtures)),
-                    DEBUG["summary"])
-
-    # DEBUG ONLY
-    # Collect all the results for each reported phase/scope(/fixture)
-    result_by_fixture = OrderedDict()
-    debug_print("Scope/phase saved results summary in executions order:",
-                DEBUG["summary"])
-    for saved_result in SessionStatus.verifications.saved_results:
-        key = "{0.fixture_name}:{0.test_function}:{0.phase}:{0.scope}"\
-            .format(saved_result)
-        if key not in result_by_fixture:
-            result_by_fixture[key] = {}
-            result_by_fixture[key][saved_result.type_code] = 1
-        elif saved_result.type_code not in result_by_fixture[key]:
-            result_by_fixture[key][saved_result.type_code] = 1
-        else:
-            result_by_fixture[key][saved_result.type_code] += 1
-    for key, val in result_by_fixture.items():
-        debug_print("{}: {}".format(key, val), DEBUG["summary"])
-    # DEBUG END
-
-    # Consolidated test results - plugin saved results and parsed pytest
-    # reports
-    test_results = OrderedDict()
-    # Search backwards through the fixture results to find setup results
+def final_test_outcomes():
+    summary_results = {}
     for module_class_function in SessionStatus.run_order:
         module_name, class_name, test_func = module_class_function
-        debug_print("Setup teardown fixture results to collate: {}".format(
-            SessionStatus.test_fixtures[test_func]), DEBUG["summary"])
+        results = SessionStatus.verifications.filter_results(
+            phase="teardown", scope="class", class_name=class_name)
+        results.extend(SessionStatus.verifications.filter_results(
+            phase="teardown", scope="module", module_name=module_name))
+        results.extend(SessionStatus.verifications.filter_results(
+            phase="teardown", scope="function", test_function=test_func))
+        # not req to update the outcome
+        summary = SessionStatus.verifications._results_summary(results)
 
-        # TODO if no fixtures in fixture_results the phase must be passed
-        # fixtures = SessionStatus.test_fixtures[test_function]
+        def phase_outcome(saved_summary, pytest_outcome):
+            for outcome_condition, outcome in outcome_conditionals:
+                if outcome_condition(saved_summary, pytest_outcome):
+                    return phase_specific_result("teardown", outcome)
 
-        fixture_results = {}
-        for phase in ("setup", "teardown"):
-            fixture_results[phase] = {"overall": {}}
-            # Module scoped fixtures
-            m_res = _filter_scope_phase("module", "module", module_name, phase)
-            # remove module results for fixtures not listed in
-            # SessionStatus.test_fixtures[test_function]
-            m_res_cut = []
-            for res in m_res:
-                if res.fixture_name in SessionStatus.test_fixtures[test_func]:
-                    m_res_cut.append(res)
-            fixture_results[phase]["module"] = _filter_fixture(m_res_cut)
-            # Class scoped fixtures
-            c_res = _filter_scope_phase("class_name", "class", class_name,
-                                        phase)
-            fixture_results[phase]["class"] = _filter_fixture(c_res)
-            # Function scoped fixtures
-            f_res = _filter_scope_phase("test_function", "function",
-                                        test_func, phase)
-            fixture_results[phase]["function"] = _filter_fixture(f_res)
-        # Call (test function) results
-        call = [x for x in SessionStatus.verifications.saved_results
-                if x.test_function == test_func and x.phase == "call"]
-        call_res_summary = _results_summary(call)
-        fixture_results["call"] = {"results": call,
-                                   "overall": {"saved": call_res_summary}}
-        test_results[test_func] = fixture_results
+        tear_outcome = phase_outcome(summary, None)
+        index = len(hierarchy) - 1
+        for phase_outcome in (SessionStatus.test_outcome[test_func]["teardown"],
+                              tear_outcome):
+            phase_outcome_index = hierarchy.index(phase_outcome)
+            if phase_outcome_index < index:
+                index = phase_outcome_index
+        tear_outcome = hierarchy[index]
 
-    # Parse the pytest reports
-    # Extract report type, outcome, duration, when (phase), location (test
-    # function).
-    # Session based reports (CollectReport, (pytest-)WarningReport) are
-    # collated for printing later.
-    pytest_reports = terminalreporter.stats
-    reports_total = sum(len(v) for k, v in list(pytest_reports.items()))
-    debug_print("{} pytest reports".format(reports_total), DEBUG["summary"])
-    total_session_duration = 0
-    collect_error_reports = []
-    pytest_warning_reports = []
-    summary_results = {}
-    for report_type, reports in pytest_reports.items():
-        for report in reports:
-            debug_print("Report type: {}, report: {}".format(
-                report_type, report), DEBUG["summary"])
-            if isinstance(report, CollectReport):
-                # Don't add to test_results dictionary
-                debug_print("Found CollectReport", DEBUG["summary"])
-                collect_error_reports.append(report)
-                if "collection error" not in summary_results:
-                    summary_results["collection error"] = 1
-                else:
-                    summary_results["collection error"] += 1
-            elif isinstance(report, WarningReport):
-                debug_print("Found WarningReport", DEBUG["summary"])
-                pytest_warning_reports.append(report)
-                if "pytest-warning" not in summary_results:
-                    summary_results["pytest-warning"] = 1
-                else:
-                    summary_results["pytest-warning"] += 1
-            else:
-                parsed_report = {
-                    "type": report_type,
-                    "pytest-outcome": report.outcome,
-                    "duration": report.duration
-                }
-                total_session_duration += report.duration
-                # test report location[2] for a standalone test function
-                # within a module is just the function name, for class
-                # based tests it is in the format:
-                # class_name.test_function_name
-                # DEBUG could be retrieved from nodeid .split(":")[-1]
-                test_results[report.location[2].split(".")[-1]][report.when][
-                    "overall"]["pytest"] = parsed_report
+        setup_results = SessionStatus.verifications.filter_results(
+            phase="setup", scope="class", class_name=class_name)
+        setup_results.extend(SessionStatus.verifications.filter_results(
+            phase="setup", scope="module", module_name=module_name))
+        setup_results.extend(SessionStatus.verifications.filter_results(
+            phase="setup", scope="function", test_function=test_func))
+        # not req to update the outcome
+        setup_summary = SessionStatus.verifications._results_summary(setup_results)
 
-    # For each test: determine the result for each phase and the overall test
-    # result.
-    for test_function, test_result in test_results.items():
-        for phase in ("setup", "teardown"):
-            test_result[phase]["overall"]["saved"] = {}
-            for scope in ("module", "class", "function"):
-                for fixture_name, fixture_result in test_result[phase][scope].items():
-                    for k, v in fixture_result[-1].items():
-                        if k in test_result[phase]["overall"]["saved"]:
-                            test_result[phase]["overall"]["saved"][k] += v
-                        else:
-                            test_result[phase]["overall"]["saved"][k] = v
-            # Overall phase result (use the plugins saved results and the
-            # pytest report outcome
-            test_result[phase]["overall"]["result"] = phase_specific_result(
-                phase,
-                _get_phase_summary_result(test_result[phase]["overall"]))
-        test_result["call"]["overall"]["result"] = \
-            _get_phase_summary_result(test_result["call"]["overall"])
+        call_results = (SessionStatus.verifications.filter_results(
+            phase="call", test_function=test_func))
+        call_summary = SessionStatus.verifications._results_summary(call_results)
 
-        test_result["overall"] = _get_test_summary_result(
-            test_result["setup"]["overall"]["result"],
-            test_result["call"]["overall"]["result"],
-            test_result["teardown"]["overall"]["result"])
+        # Get the final test outcome
+        index = len(hierarchy) - 1
+        for phase_outcome in (SessionStatus.test_outcome[test_func]["setup"],
+                              SessionStatus.test_outcome[test_func]["call"],
+                              # SessionStatus.test_outcome[test_func]["teardown"],
+                              tear_outcome):
+            phase_outcome_index = hierarchy.index(phase_outcome)
+            if phase_outcome_index < index:
+                index = phase_outcome_index
+        LogLevel.high_level_step("{} FINAL TEST OUTCOME: {}".format(
+            test_func, hierarchy[index]))
+        LogLevel.detail_step("Test setup outcome: {}, summary: {}".format(
+            SessionStatus.test_outcome[test_func]["setup"], setup_summary))
+        LogLevel.detail_step("Test call outcome: {}, summary: {}".format(
+            SessionStatus.test_outcome[test_func]["call"], call_summary))
+        # This is the final updated test teardown
+        LogLevel.detail_step("Test teardown outcome: {}, summary: {}"
+                             .format(tear_outcome, summary))
+
         # Increment the test result outcome counter
-        if test_result["overall"] not in summary_results:
-            summary_results[test_result["overall"]] = 1
+        if hierarchy[index] not in summary_results:
+            summary_results[hierarchy[index]] = 1
         else:
-            summary_results[test_result["overall"]] += 1
+            summary_results[hierarchy[index]] += 1
+    return summary_results
 
-    for test_function, fixture_results in test_results.items():
-        LogLevel.high_level_step("Summary of results for test {}, overall: "
-                                   "{}".format(test_function,
-                                               fixture_results["overall"]))
-        for phase in ("setup", "call", "teardown"):
-            if phase == "setup":
-                LogLevel.detail_step(
-                    "Setup ({0}), overall: {1[result]}, saved results: "
-                    "{1[saved]}".format(test_function,
-                                        fixture_results[phase]["overall"]))
-                for scope in ("module", "class", "function"):
-                    for fixture_name, results in fixture_results[phase][scope]\
-                            .items():
-                        results_id = [hex(id(x))[-4:] for x in results[0:-1]]
-                        LogLevel.step("Fixture {} (scope: {}) saved results:"
-                                        " {}".format(fixture_name, scope,
-                                                    results[-1]),
-                                        log_level=3)
-                        debug_print(results_id, DEBUG["summary"])
-            elif phase == "teardown":
-                LogLevel.detail_step(
-                    "Teardown ({0}), overall: {1[result]}, saved results: "
-                    "{1[saved]}".format(test_function,
-                                        fixture_results[phase]["overall"]))
-                for scope in ("function", "class", "module"):
-                    for fixture_name, results in fixture_results[phase][scope]\
-                            .items():
-                        results_id = [hex(id(x))[-4:] for x in results[0:-1]]
-                        LogLevel.step("Fixture {} (scope: {}) saved results:"
-                                        " {}".format(fixture_name, scope,
-                                                    results[-1]),
-                                        log_level=3)
-                        debug_print(results_id, DEBUG["summary"])
-            elif phase == "call":
-                LogLevel.detail_step(
-                    "Call (test function {0}), overall: {1[result]}, saved "
-                    "results: {1[saved]}".format(test_function,
-                                                 fixture_results[phase][
-                                                   "overall"]))
-                results_id = [hex(id(x))[-4:] for x in fixture_results[phase][
-                    "results"]]
-                debug_print(results_id, DEBUG["summary"])
-            if "overall" in fixture_results[phase]:
-                debug_print("Phase overall: {}".format(
-                    fixture_results[phase]["overall"]), DEBUG["summary"])
 
-    # Print the expected fail, unexpected pass and skip reports exactly as
-    # pytest does.
-    lines = []
-    show_xfailed(terminalreporter, lines)
-    show_xpassed(terminalreporter, lines)
-    show_skipped(terminalreporter, lines)
-    # Print the reports of the collected
-    for report in collect_error_reports:
-        lines.append("COLLECTION ERROR {}".format(report.longrepr))
-    for report in pytest_warning_reports:
-        lines.append("PYTEST-WARNING {} {}".format(report.nodeid,
-                                                   report.message))
-    if lines:
-        LogLevel.high_level_step("collection error, skip, xFail/xPass and "
-                                   "pytest-warning reasons (short test summary "
-                                   "info)")
-        for line in lines:
-            LogLevel.detail_step(line)
-    else:
-        LogLevel.high_level_step("No collection errors, skips, xFail/xPass or "
-                                   "pytest-warnings")
+def module_saved_results(module_name):
+    print_results(SessionStatus.verifications.filter_results(
+        module_name=module_name), alternative_title="MODULE SAVED "
+                                                    "VERIFICATIONS")
 
-    session_duration = time.time() - terminalreporter._sessionstarttime
-    debug_print("All tests result summary: {}. Session duration: {}s (sum of "
-                "phases: {}s)".format(summary_results, session_duration,
-                                      total_session_duration),
-                DEBUG["summary"])
 
+def final_summary(summary_results):
     outcomes = []
     for outcome in hierarchy:
         if outcome in summary_results:
@@ -916,9 +761,106 @@ def pytest_terminal_summary(terminalreporter):
                 outcome_message = outcome
             outcomes.append("{} {}".format(summary_results[outcome],
                                            outcome_message))
-    summary_line = "{0} in {1:.2f}s".format(", ".join(outcomes),
-                                            session_duration)
-    LogLevel.high_level_step(summary_line)
+    LogLevel.high_level_step(", ".join(outcomes))
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtestloop(session):
+    yield
+    SessionStatus.mongo.update_session_complete()
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_terminal_summary(terminalreporter):
+    """ override the terminal summary reporting. """
+    # DEBUG ONLY
+    debug_print("In pytest_terminal_summary", DEBUG["summary"])
+    if DEBUG["verify"]:
+        debug_print("Saved Results (dictionaries)", DEBUG["verify"])
+        for i, res in enumerate(SessionStatus.verifications.saved_results):
+            debug_print("{} - {}".format(i, res.__dict__), DEBUG["verify"])
+        debug_print("Saved Tracebacks (dictionaries)", DEBUG["verify"])
+        for i, tb in enumerate(SessionStatus.verifications.saved_tracebacks):
+            debug_print("{} - {}".format(i, tb.__dict__), DEBUG["verify"])
+        for saved_tb in SessionStatus.verifications.saved_tracebacks:
+            debug_print("Result {0.result_link} linked to traceback {0}"
+                        .format(saved_tb), DEBUG["verify"])
+    if DEBUG["summary"]:
+        debug_print("Run order:", DEBUG["summary"])
+        for module_class_function in SessionStatus.run_order:
+            debug_print("{0[0]}::{0[1]}::{0[2]}".format(module_class_function),
+                        DEBUG["summary"])
+        debug_print("Test function fixture dependencies:", DEBUG["summary"])
+        for test_name, setup_fixtures in SessionStatus.test_fixtures.items():
+            debug_print("{} depends on setup fixtures: {}"
+                        .format(test_name, ", ".join(setup_fixtures)),
+                        DEBUG["summary"])
+        # Collect all the results for each reported phase/scope(/fixture)
+        result_by_fixture = OrderedDict()
+        debug_print("Scope/phase saved results summary in executions order:",
+                    DEBUG["summary"])
+        for saved_result in SessionStatus.verifications.saved_results:
+            key = "{0.fixture_name}:{0.test_function}:{0.phase}:{0.scope}"\
+                .format(saved_result)
+            if key not in result_by_fixture:
+                result_by_fixture[key] = {}
+                result_by_fixture[key][saved_result.type_code] = 1
+            elif saved_result.type_code not in result_by_fixture[key]:
+                result_by_fixture[key][saved_result.type_code] = 1
+            else:
+                result_by_fixture[key][saved_result.type_code] += 1
+        for key, val in result_by_fixture.items():
+            debug_print("{}: {}".format(key, val), DEBUG["summary"])
+    # DEBUG END
+
+    # Parse the pytest reports
+    # Extract report type, outcome, duration, when (phase), location (test
+    # function). Session based reports (CollectReport, (pytest-)WarningReport)
+    # are collated for printing.
+    pytest_reports = terminalreporter.stats
+    reports_total = sum(len(v) for k, v in list(pytest_reports.items()))
+    debug_print("{} pytest reports".format(reports_total), DEBUG["summary"])
+    collect_error_reports = []
+    pytest_warning_reports = []
+    for report_type, reports in pytest_reports.items():
+        for report in reports:
+            debug_print("Report type: {}, report: {}".format(
+                report_type, report), DEBUG["summary"])
+            if isinstance(report, CollectReport):
+                debug_print("Found CollectReport", DEBUG["summary"])
+                collect_error_reports.append(report)
+            elif isinstance(report, WarningReport):
+                debug_print("Found WarningReport", DEBUG["summary"])
+                pytest_warning_reports.append(report)
+
+    # Print the expected fail, unexpected pass and skip reports exactly as
+    # pytest does.
+    # FIXME is it possible to do this on the module basis? must be bexause I
+    #  do update Mongo with xFail??
+    lines = []
+    show_xfailed(terminalreporter, lines)
+    show_xpassed(terminalreporter, lines)
+    show_skipped(terminalreporter, lines)
+
+    # Print the reports of any collection errors or pytest-warnings (on
+    # session basis as these are not related to specific tests) TODO check
+    for report in collect_error_reports:
+        lines.append("COLLECTION ERROR {}".format(report.longrepr))
+    for report in pytest_warning_reports:
+        lines.append("PYTEST-WARNING {} {}".format(report.nodeid,
+                                                   report.message))
+    if lines:
+        LogLevel.high_level_step("collection error, skip, xFail/xPass and "
+                                 "pytest-warning reasons (short test summary "
+                                 "info)")
+        for line in lines:
+            LogLevel.detail_step(line)
+    else:
+        LogLevel.high_level_step("No collection errors, skips, xFail/xPass or "
+                                 "pytest-warnings")
+    # TODO update Mongo session and print to the session dashboard
+
+    # session_duration = time.time() - terminalreporter._sessionstarttime
 
     # # DEBUG ONLY
     # # Passes never seems to print anything - no summary?
@@ -935,6 +877,8 @@ def pytest_terminal_summary(terminalreporter):
 
     # Exit now and don't print the original pytest summary
     exit()  # FIXME use correct exit code - how does pytest decide this?
+    # TODO exit code can be used to inform jenkins if the test session
+    # passed or failed (or warned)
     # print("Anything following this message is the original pytest code")
 
 
@@ -942,60 +886,3 @@ def _print_summary(terminalreporter, report):
     # print "********** {} **********".format(report)
     # writes directly - does not return anything
     getattr(terminalreporter, "summary_{}".format(report))()
-
-
-def _get_phase_summary_result(overall):
-    # overall dict example contents
-    # {'pytest': {'pytest-outcome': 'failed',
-    #             'duration': 0.02312016487121582,
-    #             'type': 'error'},
-    # 'saved': {'P': 1, 'W': 1}}
-    if "pytest" not in overall:
-        # TODO check this is the call phase
-        return "not run (no report)"
-    for result_condition, result_text in outcome_conditions:
-        # debug_print("Checking saved results: {}, condition result = {}"
-        #             .format(overall, result_condition(overall)),
-        #             DEBUG["summary"])
-        if result_condition(overall):
-            return result_text  # falls out to "passed" if no other
-
-
-def _get_test_summary_result(setup_result, call_result, teardown_result):
-    for outcome in hierarchy[:11]:
-        if outcome in (setup_result, call_result, teardown_result):
-            return outcome
-    if setup_result == Outcomes.passed and call_result == Outcomes.passed and \
-            teardown_result == Outcomes.passed:
-        return Outcomes.passed
-
-
-def _filter_scope_phase(result_att, scope, scope_name, phase):
-    s_r = SessionStatus.verifications.saved_results
-    scope_results = [x for x in s_r if getattr(x, result_att) == scope_name
-                           and x.scope == scope]
-    return [y for y in scope_results if y.phase == phase]
-
-
-# TODO refactor usages and remove
-def _results_summary(results):
-    summary = {}
-    for result in results:
-        if result.type_code not in summary:
-            summary[result.type_code] = 1
-        else:
-            summary[result.type_code] += 1
-    return summary
-
-
-def _filter_fixture(results):
-    results_by_fixture = OrderedDict()
-    for res in results:
-        if res.fixture_name not in results_by_fixture:
-            results_by_fixture[res.fixture_name] = [res]
-        else:
-            results_by_fixture[res.fixture_name].append(res)
-    for fix_name, fix_results in results_by_fixture.items():
-        f_res_summary = _results_summary(fix_results)
-        results_by_fixture[fix_name].append(f_res_summary)
-    return results_by_fixture
