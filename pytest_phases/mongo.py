@@ -65,7 +65,7 @@ def insert_document(collection, entry):
 
 def update_one_document(collection, match, update):
     try:
-        # TODO add upsert option when required
+        # could use upsert option in future if required
         res = collection.update_one(match, update)
     except Exception as e:
         print("Mongo Exception Caught: {}".format(str(e)))
@@ -78,8 +78,6 @@ def update_one_document(collection, match, update):
 
 
 class MongoConnector(object):
-    session_id = None  # FIXME move to class instance
-    # hosts = None
     parents = ["-"] * (MAX_LEVEL - MIN_LEVEL)  # FIXME
 
     def __new__(cls, *args, **kwargs):
@@ -100,7 +98,7 @@ class MongoConnector(object):
     def __init__(self, enable, hosts, db_name):
         if enable:
             self.db = MongoClient(hosts)[db_name]
-
+            self.session_id = None
             self.session_oid = None
             self.module_oid = None
             self.class_oid = None  # Generated embedded doc ObjectId
@@ -134,9 +132,9 @@ class MongoConnector(object):
         """
         # increment session counter in db and use it for the session entry
         # "session_id": session_id (unique ObjectId for the _id)
-        MongoConnector.session_id = self._get_session_id()
+        self.session_id = self._get_session_id()
         print("Initialize test session {} in mongoDB {}".format(
-            MongoConnector.session_id, self.db.name))
+            self.session_id, self.db.name))
 
         branches = [x.strip() for x in CONFIG["test-branch"].value.split(",")]
         submodules = [x.strip() for x in CONFIG["test-submodules"].value.
@@ -168,7 +166,7 @@ class MongoConnector(object):
             devices=[],
             testVersion=test_version,
             plan="ObjectId link",
-            sessionId=MongoConnector.session_id,
+            sessionId=self.session_id,
             embeddedVersion=embedded_version,
             status="in-progress",
             # pending/queued/in-progress/stalled/paused/complete
@@ -200,7 +198,7 @@ class MongoConnector(object):
         class method. If None then test is a module test only.
         """
         module = dict(
-            sessionId=MongoConnector.session_id,
+            sessionId=self.session_id,
             classes=[],
             moduleName=test_module,
             status="in-progress",
@@ -329,7 +327,7 @@ class MongoConnector(object):
         update_one_document(self.db.sessions, match, update)
 
         log_link = dict(
-            sessionId=MongoConnector.session_id,
+            sessionId=self.session_id,
             className=class_name,
             moduleName=module_name,
             testName=test_function,
@@ -338,7 +336,7 @@ class MongoConnector(object):
         self.link_oid = insert_document(self.db.loglinks, log_link)
 
         test_result = dict(
-            sessionId=MongoConnector.session_id,
+            sessionId=self.session_id,
             runOrderId=run_order_oid,
             functionFixtures=[],  # links to fixture docs
             moduleName=module_name,
@@ -512,7 +510,8 @@ class MongoConnector(object):
 
     def _get_test_oids_in_fixture_scope(self, scope):
         # For module or class scoped fixtures update all corresponding test
-        # outcomes and session.runOrder
+        # outcomes and session.runOrder. Note: does not cover session scoped
+        # fixtures.
         if scope == "module":
             doc = self.db.modules.find_one(
                 {"_id": self.module_oid},
@@ -718,7 +717,7 @@ class MongoConnector(object):
             parents=MongoConnector.parents[:level - MIN_LEVEL - 1],
             parentIndices=get_parents(),
             numOfChildren=0,
-            timestamp=datetime.datetime.utcnow(),
+            timestamp=datetime.datetime.utcnow(),  # FIXME use time.time() instead
             testResult=self.test_oid
         )
         # Insert the log message
@@ -814,7 +813,7 @@ class MongoConnector(object):
             ),
             fullTraceback=verify_oid,
             immediate=saved_result.raise_immediately,
-            sessionId=MongoConnector.session_id,
+            sessionId=self.session_id,
             moduleName=saved_result.module,  # could use SessionStatus.module
             className=saved_result.class_name,  # SessionStatus.class_name
             testName=saved_result.test_function,  # SessionStatus.test_function
