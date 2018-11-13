@@ -75,8 +75,8 @@ hierarchy = (
     Outcomes.unknown,
     Outcomes.in_progress,
     Outcomes.pending
+    # TODO what about call phases that aren't run?
 )
-
 
 _plurals = {
     Outcomes.setup_skip: "setups skipped",
@@ -90,31 +90,6 @@ _plurals = {
     Outcomes.pytest_warning: "pytest-warning",
     Outcomes.collect_error: "collection error"
 }
-
-# FIXME remove
-# this list is hierarchical so order is important
-outcome_conditions = (
-    (lambda o: o["pytest"]["type"] == "skipped", Outcomes.skip),
-    # Error required to catch things such as missing fixture
-    (lambda o: o["pytest"]["type"] == "xfailed", Outcomes.expected_fail),
-    (lambda o: o["pytest"]["type"] == "xpassed", Outcomes.unexpected_pass),
-    (lambda o: True in [x in list(o["saved"].keys()) for x in ("A", "O", "F")],
-     Outcomes.fail),
-    (lambda o: True in ["W" in list(o["saved"].keys())], Outcomes.warning),
-    # Otherwise (no saved results) pass if report outcome is passed
-    # could also check report type
-    # (lambda o: o["pytest"]["pytest-outcome"] == "passed", "passed")
-    # TODO Call phase reports as "failed" if setup warned/failed but
-    # continued. Mark as passed if above conditions don't indicate a
-    # failure/warning in call (i.e. ignore the report)
-    # FIXME how to catch any other conditions
-
-    (lambda o: o["pytest"]["type"] == "error", Outcomes.error),
-    (lambda o: o["pytest"]["type"] == "failed", Outcomes.fail),
-
-    (lambda o: True, Outcomes.passed)
-    # TODO drop out to unknown or pytest outcome?
-)
 
 # this list is hierarchical so order is important
 outcome_conditionals = (
