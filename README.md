@@ -96,16 +96,16 @@ output:
     4-2 Step: Another step at this incremented level
 
 ## Verifications
-### verify Function Format and Options
+### verify Function Format, Options and Return
 
-Function call format
+#### Function call format
 ```python
 verify(fail_condition, fail_message, raise_immediately=True,
        warning=False, warn_condition=None, warn_message=None,
        full_method_trace=False, stop_at_test=True, log_level=None)
 ```
 
-Verification options:
+#### Verification options:
 - fail_condition:
 an expression that if it evaluates to False raises a VerificationException
 (or WarningException is warning is set to True).
@@ -116,14 +116,14 @@ whether to raise an exception immediately upon failure (same behaviour as regula
 - warning (optional, default None):
 raise the fail_condition as a WarningException rather than VerificationException.
 
-Warning options:
+#### Warning options:
 - warn_condition (optional, default None):
 if fail_condition evaluates to True test this condition for a warning (cannot be used in addition to warning parameter).
 Raises WarningException if expression evaluates to False.
 - warn_message:
 a message describing the warning condition being verified (requires warn_condition to be defined).
 
-Traceback options:
+#### Traceback options:
 - full_method_trace (optional, default False):
 print an extended traceback with the full source of each calling function.
 - stop_at_test (optional, default True):
@@ -132,6 +132,19 @@ stop printing the traceback when test function is reached (don't descend in to p
 the log level to assign to the verification message.
 By default the verification message the log level applied is that of the previous message +1.
 After printing the verification message the previous log level is restored.
+
+#### Verification return
+The verify function returns a tuple of three items:
+
+- [0] True or False (boolean): true if verification condition (+ warning condition if applicable) passes, 
+ false if condition evaluates to a warning or failure.
+- [1] Status (string):
+the result status of the verification, one of "PASS", "WARNING", "FAIL".
+- [2] Exception type (Exception Class):
+the type of exception created after evaluating the verification conditions. 
+One of WarningException, VerificationException or None for a passing 
+verification.
+
 
 ### Basic Usage
 
@@ -185,7 +198,7 @@ verify(y <= 10, "Check y is less than or equal to 10",
 z = 10.1
 verify(z <= 10, "Check z is less than or equal to 10",
        warn_condition=z < 3, warn_message="Check z is less than 3")
-``` 
+```
  
 It is also possible to test a completely different object(s) for warning if the failure condition is not met,
 e.g.
