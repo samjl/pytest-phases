@@ -10,7 +10,7 @@
 - [Custom Level Step](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#other-log-levels)
 
 [Verifications](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#verifications)
-- [verify function](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#verify-function-format-and-options)
+- [verify function](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#verify-function-format-options-and-return)
 - [Basic Usage](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#basic-usage)
 - [Warnings](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#raising-warnings)
 - [Failure and Warning Conditions](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#verifications-including-failure-and-warning-conditions)
