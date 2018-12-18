@@ -139,12 +139,23 @@ class MongoConnector(object):
         branches = [x.strip() for x in CONFIG["test-branch"].value.split(",")]
         submodules = [x.strip() for x in CONFIG["test-submodules"].value.
                       split(",")]
+        jenkins_job_name = None
+        if CONFIG["jenkins-job-name"].value:
+            jenkins_job_name = CONFIG["jenkins-job-name"].value
+        jenkins_job_number = None
+        if CONFIG["jenkins-job-number"].value:
+            jenkins_job_number = CONFIG["jenkins-job-number"].value
         test_version = dict(
             tag=CONFIG["test-tag"].value if CONFIG["test-tag"].value else None,
             sha=CONFIG["test-sha"].value if CONFIG["test-sha"].value else None,
             branch=branches,
-            submodules=submodules
+            submodules=submodules,
+            jenkinsJobName=jenkins_job_name,
+            jenkinsJobNumber=jenkins_job_number,
         )
+        test_rig = CONFIG["test-rig-config"].value
+        if test_rig:
+            test_rig = test_rig[-5] if test_rig.endswith(".json") else test_rig
         embedded_version = dict(
             branchName=CONFIG["sw-branch-name"].value if CONFIG[
                 "sw-branch-name"].value else None,
@@ -163,7 +174,8 @@ class MongoConnector(object):
             embedded_version["patch"] = CONFIG["sw-patch"].value
 
         session = dict(
-            devices=[],
+            testRig=test_rig,
+            devices=[],  # FIXME is this still useful?
             testVersion=test_version,
             plan="ObjectId link",
             sessionId=self.session_id,

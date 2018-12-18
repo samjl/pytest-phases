@@ -94,6 +94,12 @@ CONFIG = {"include-verify-local-vars":
                                   "branches"),
           "test-submodules":
           ConfigOption(str, None, "cnet2 checked out submodule commits"),
+          "test-rig-config":
+          ConfigOption(str, None, "Test rig configuration file"),
+          "jenkins-job-name":
+          ConfigOption(str, None, "Jenkins test job name"),
+          "jenkins-job-number":
+          ConfigOption(int, None, "Jenkins test job number"),
           }
 
 

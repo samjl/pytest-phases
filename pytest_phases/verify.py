@@ -450,8 +450,8 @@ def _get_calling_func(stack, depth, stop_at_test, full_method_trace):
         call_line_number = stack[depth][2]
         module_line_parent = "{0[1]}:{0[2]}:{0[3]}".format(stack[depth])
         calling_frame_locals = {}
-        if CONFIG["include-verify-local-vars"].value\
-                or CONFIG["include-all-local-vars"].value:
+        if (CONFIG["include-verify-local-vars"].value
+                or CONFIG["include-all-local-vars"].value):
             try:
                 calling_frame_locals = dict(list(
                     inspect.getargvalues(stack[depth][0]).locals.items()
