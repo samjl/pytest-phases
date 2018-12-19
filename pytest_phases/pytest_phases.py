@@ -37,6 +37,8 @@ from _pytest.terminal import WarningReport
 from .common import (
     CONFIG,
     DEBUG,
+    MONGO_CONFIG,
+    WEB_SERVER_CONFIG,
     debug_print
 )
 from .loglevels import (
@@ -66,62 +68,68 @@ standard_library.install_aliases()
 
 
 def pytest_addoption(parser):
-    print("Adding options")
-    for name, val in CONFIG.items():
-        parser.addoption("--{}".format(name),
-                         # type=val.value_type,
-                         action="store",
+    for name, val in dict(CONFIG, **MONGO_CONFIG, **WEB_SERVER_CONFIG).items():
+        parser.addoption("--{}".format(name), action="store",
                          help=val.help)
+
+
+def parse_config_file_options(lookup, section, parser):
+    for option in list(lookup.keys()):
+        try:
+            if lookup[option].value_type is int:
+                lookup[option].value = parser.getint(section, option)
+            elif lookup[option].value_type is bool:
+                lookup[option].value = parser.getboolean(section, option)
+            else:
+                lookup[option].value = parser.get(section, option)
+        except Exception as e:
+            print(e)
+
+
+def parse_cmd_line_options(lookup, pytest_config):
+    for name, val in lookup.items():
+        cmd_line_val = pytest_config.getoption("--{}".format(name))
+        if cmd_line_val:
+            if lookup[name].value_type is bool:
+                if cmd_line_val.lower() in ("1", "yes", "true", "on"):
+                    lookup[name].value = True
+                elif cmd_line_val.lower() in ("0", "no", "false", "off"):
+                    lookup[name].value = False
+            else:
+                lookup[name].value = lookup[name].value_type(cmd_line_val)
 
 
 @pytest.hookimpl(trylast=True)  # TODO is this still required?
 def pytest_configure(config):
-    print("phases configuration (loglevels, outputredirect, verify)")
+    print("Performing pytest-phases configuration")
     # Load user defined configuration from file (config.cfg)
     config_path = pkg_resources.resource_filename('pytest_phases', '')
     parser = ConfigParser()
+
+    # Parse config.cfg
     parser.read(os.path.join(config_path, "config.cfg"))
-
-    for func in list(DEBUG.keys()):
-        try:
-            DEBUG[func].enabled = parser.getboolean("debug", func)
-        except Exception as e:
-            print(e)
-
-    for option in list(CONFIG.keys()):
-        try:
-            if CONFIG[option].value_type is int:
-                CONFIG[option].value = parser.getint("general", option)
-            elif CONFIG[option].value_type is bool:
-                CONFIG[option].value = parser.getboolean("general", option)
-            else:
-                CONFIG[option].value = parser.get("general", option)
-        except Exception as e:
-            print(e)
-
-    for name, val in CONFIG.items():
-        cmd_line_val = config.getoption("--{}".format(name))
-        if cmd_line_val:
-            if CONFIG[name].value_type is bool:
-                if cmd_line_val.lower() in ("1", "yes", "true", "on"):
-                    CONFIG[name].value = True
-                elif cmd_line_val.lower() in ("0", "no", "false", "off"):
-                    CONFIG[name].value = False
-            else:
-                CONFIG[name].value = CONFIG[name].value_type(cmd_line_val)
-
-    print("pytest-phases configuration:")
-    for option in list(CONFIG.keys()):
-        print("{0}: type={1.value_type}, val={1.value}".format(option, CONFIG[
-            option]))
-
-    # User defined mongo DB configuration (mongo.cfg)
+    parse_config_file_options(DEBUG, "debug", parser)
+    parse_config_file_options(CONFIG, "general", parser)
+    # Parse mongo.cfg
     parser.read(os.path.join(config_path, "mongo.cfg"))
-    mongo_hosts = parser.get("general", "hosts").split(",")
-    mongo_enable = parser.getboolean("general", "enable")
-    mongo_db = parser.get("general", "db")
+    parse_config_file_options(MONGO_CONFIG, "general", parser)
+    parse_config_file_options(WEB_SERVER_CONFIG, "webapp", parser)
 
-    SessionStatus.mongo = MongoConnector(mongo_enable, mongo_hosts, mongo_db)
+    # Command line parameters override values in the .cfg files
+    parse_cmd_line_options(CONFIG, config)
+    parse_cmd_line_options(MONGO_CONFIG, config)
+    parse_cmd_line_options(WEB_SERVER_CONFIG, config)
+    print("pytest-phases configuration:")
+    # All configuration options (file and command line)
+    for option, value in dict(CONFIG, **DEBUG, **MONGO_CONFIG,
+                              **WEB_SERVER_CONFIG).items():
+        print("{0}:{1.value} (type={1.value_type})".format(option, value))
+
+    SessionStatus.mongo = MongoConnector(
+        MONGO_CONFIG["enable"].value,
+        MONGO_CONFIG["hosts"].value.split(","),
+        MONGO_CONFIG["db"].value
+    )
 
     if not CONFIG["no-redirect"].value:
         debug_print("Perform output redirection", DEBUG["output-redirect"])
@@ -161,7 +169,7 @@ def pytest_collection_modifyitems(session, config, items):
     config_path = pkg_resources.resource_filename('pytest_phases', '')
     parser = ConfigParser()
     parser.read(os.path.join(config_path, "mongo.cfg"))
-    web_app_host = parser.get("webapp", "host")
+    web_app_host = parser.get("webapp", "hostname")
     web_app_port = parser.get("webapp", "port")
     print("http://{}:{}/session?sessionIds={}".format(
         web_app_host, web_app_port, SessionStatus.mongo.session_id)
