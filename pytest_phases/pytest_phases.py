@@ -165,14 +165,10 @@ def pytest_collection_modifyitems(session, config, items):
     # Could add fixtures - .fixturenames (probably overkill)
     test_names = [i.name for i in items]
     SessionStatus.mongo.init_session(test_names)
-
-    config_path = pkg_resources.resource_filename('pytest_phases', '')
-    parser = ConfigParser()
-    parser.read(os.path.join(config_path, "mongo.cfg"))
-    web_app_host = parser.get("webapp", "hostname")
-    web_app_port = parser.get("webapp", "port")
     print("http://{}:{}/session?sessionIds={}".format(
-        web_app_host, web_app_port, SessionStatus.mongo.session_id)
+        WEB_SERVER_CONFIG["hostname"].value,
+        WEB_SERVER_CONFIG["port"].value,
+        SessionStatus.mongo.session_id)
     )
 
 @pytest.hookimpl(hookwrapper=True)
