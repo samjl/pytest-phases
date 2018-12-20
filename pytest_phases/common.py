@@ -96,7 +96,7 @@ CONFIG = {
                                 "branches"),
     "test-submodules":
         ConfigOption(str, None, "cnet2 checked out submodule commits"),
-    "test-rig-config":
+    "config":
         ConfigOption(str, None, "Test rig configuration file"),
     "jenkins-job-name":
         ConfigOption(str, None, "Jenkins test job name"),

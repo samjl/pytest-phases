@@ -153,7 +153,7 @@ class MongoConnector(object):
             jenkinsJobName=jenkins_job_name,
             jenkinsJobNumber=jenkins_job_number,
         )
-        test_rig = CONFIG["test-rig-config"].value
+        test_rig = CONFIG["config"].value
         if test_rig and test_rig.endswith(".json"):
             test_rig = test_rig[:-5]
         embedded_version = dict(
