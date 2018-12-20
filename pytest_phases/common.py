@@ -32,8 +32,8 @@ DEBUG = {"print-saved": DebugFunctionality("print saved", False),
          "phases": DebugFunctionality("phases", False),
          "scopes": DebugFunctionality("scopes", False),
          "summary": DebugFunctionality("summary", False),
-         "output-redirect": DebugFunctionality("redirect", True),
-         "mongo": DebugFunctionality("mongo", True),
+         "output-redirect": DebugFunctionality("redirect", False),
+         "mongo": DebugFunctionality("mongo", False),
          "dev": DebugFunctionality("dev", False)}
 
 CONFIG = {
