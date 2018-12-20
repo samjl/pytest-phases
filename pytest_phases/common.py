@@ -23,7 +23,6 @@ class ConfigOption(object):
 class DebugFunctionality(ConfigOption):
     def __init__(self, name, enabled):
         self.name = name
-        self.enabled = enabled
         super().__init__(bool, enabled, False)
 
 
@@ -127,7 +126,7 @@ WEB_SERVER_CONFIG = {
 
 def debug_print(msg, flag, prettify=None):
     # Print a debug message if the corresponding flag is set.
-    if flag.enabled:
+    if flag.value:
         print("DEBUG({}): {}".format(flag.name, msg))
         if prettify:
             print(pformat(prettify, indent=4, width=80))
