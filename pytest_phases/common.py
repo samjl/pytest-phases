@@ -101,6 +101,10 @@ CONFIG = {
         ConfigOption(str, None, "Jenkins test job name"),
     "jenkins-job-number":
         ConfigOption(int, 0, "Jenkins test job number"),
+    "trigger-job-name":
+        ConfigOption(str, None, "Jenkins upstream trigger job name"),
+    "trigger-job-number":
+        ConfigOption(int, 0, "Jenkins upstream trigger job number"),
     # "cfg":
     #     ConfigOption(str, None, "cfg file path"),
 }

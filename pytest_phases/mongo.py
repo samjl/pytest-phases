@@ -139,20 +139,24 @@ class MongoConnector(object):
         branches = [x.strip() for x in CONFIG["test-branch"].value.split(",")]
         submodules = [x.strip() for x in CONFIG["test-submodules"].value.
                       split(",")]
-        jenkins_job_name = None
-        if CONFIG["jenkins-job-name"].value:
-            jenkins_job_name = CONFIG["jenkins-job-name"].value
-        jenkins_job_number = None
-        if CONFIG["jenkins-job-number"].value:
-            jenkins_job_number = CONFIG["jenkins-job-number"].value
+
         test_version = dict(
-            tag=CONFIG["test-tag"].value if CONFIG["test-tag"].value else None,
-            sha=CONFIG["test-sha"].value if CONFIG["test-sha"].value else None,
+            tag=CONFIG["test-tag"].value,
+            sha=CONFIG["test-sha"].value,
             branch=branches,
             submodules=submodules,
-            jenkinsJobName=jenkins_job_name,
-            jenkinsJobNumber=jenkins_job_number,
         )
+        if CONFIG["jenkins-job-name"].value:
+            test_version["jenkinsJobName"] = CONFIG["jenkins-job-name"].value
+        if CONFIG["jenkins-job-number"].value:
+            test_version["jenkinsJobNumber"] = CONFIG[
+                "jenkins-job-number"].value
+        if CONFIG["trigger-job-name"].value:
+            test_version["triggerJobName"] = CONFIG["trigger-job-name"].value
+        if CONFIG["trigger-job-number"].value:
+            test_version["triggerJobNumber"] = CONFIG[
+                "trigger-job-number"].value
+
         test_rig = CONFIG["config"].value
         if test_rig and test_rig.endswith(".json"):
             test_rig = test_rig[:-5]
