@@ -78,7 +78,7 @@ def update_one_document(collection, match, update):
 
 
 class MongoConnector(object):
-    parents = ["-"] * (MAX_LEVEL - MIN_LEVEL)  # FIXME
+    parents = ["-"] * (MAX_LEVEL - MIN_LEVEL + 1)
 
     def __new__(cls, *args, **kwargs):
         if not args[0]:
@@ -730,7 +730,7 @@ class MongoConnector(object):
             level=level,
             step=step,
             message=escape_html(message),
-            parents=MongoConnector.parents[:level - MIN_LEVEL - 1],
+            parents=MongoConnector.parents[:level - MIN_LEVEL],
             parentIndices=get_parents(),
             numOfChildren=0,
             timestamp=datetime.datetime.utcnow(),  # FIXME use time.time() instead
@@ -742,17 +742,17 @@ class MongoConnector(object):
         self.db.loglinks.update_one({"_id": self.link_oid},
                                     {"$push": {"logIds": res.inserted_id}})
         # Update parent entries in the db: increment the number of children
-        for parent_id in MongoConnector.parents[:level - MIN_LEVEL - 1]:
+        for parent_id in MongoConnector.parents[:level - MIN_LEVEL]:
             self.db.testlogs.update_one({"_id": parent_id},
                                         {"$inc": {"numOfChildren": 1}})
 
         # Update the list of possible parents to include the inserted message
         # Add inserted _id for the relevant log level
-        MongoConnector.parents[level - MIN_LEVEL - 1] = res.inserted_id
+        MongoConnector.parents[level - MIN_LEVEL] = res.inserted_id
         # Remove possible parent at higher log levels. Required to avoid
         # incorrect number of children incrementing when log levels increment
         # by more than 1.
-        for i in range(level-MIN_LEVEL, len(MongoConnector.parents)-1):
+        for i in range(level-MIN_LEVEL+1, len(MongoConnector.parents)):
             MongoConnector.parents[i] = "-"
 
     def insert_verification(self, saved_result):

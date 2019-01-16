@@ -22,12 +22,12 @@ class LogLevel(object):
     @staticmethod
     def high_level_step(msg):
         """Print a message at the highest log level."""
-        set_log_parameters(msg, log_level=1)
+        set_log_parameters(msg, log_level=0)
 
     @staticmethod
     def detail_step(msg):
         """Print a message at the second highest log level."""
-        set_log_parameters(msg, log_level=2)
+        set_log_parameters(msg, log_level=1)
 
     @staticmethod
     def step(msg, log_level=None):
@@ -134,8 +134,8 @@ def get_parents():
 
 
 def set_current_level(log_level):
-    if log_level <= MIN_LEVEL:
-        MultiLevelLogging.current_level = MIN_LEVEL + 1
+    if log_level < MIN_LEVEL:
+        MultiLevelLogging.current_level = MIN_LEVEL
     elif log_level > MAX_LEVEL:
         MultiLevelLogging.current_level = MAX_LEVEL
     else:
@@ -170,10 +170,10 @@ class MultiLevelLogging(object):
     # level.
     current_index = 0
     current_level = 1
-    current_step = [0] * (MAX_LEVEL - MIN_LEVEL)
+    current_step = [0] * (MAX_LEVEL - MIN_LEVEL + 1)
     log_level_set = False
     current_l1_msg = None
-    parent_indices = [None] * (MAX_LEVEL - MIN_LEVEL)
+    parent_indices = [None] * (MAX_LEVEL - MIN_LEVEL + 1)
     message_type = None
 
 
@@ -193,7 +193,7 @@ def get_next_step(log_level):
 
 def index_from_level(log_level):
     # Return the current_step list index for the log level specified.
-    return log_level - MIN_LEVEL - 1
+    return log_level - MIN_LEVEL
 
 
 def reset_level_step(log_level):
