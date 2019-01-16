@@ -49,10 +49,28 @@ class LogLevel(object):
         """Increment the current log level and print message at the
         new level.
         """
-        current_level = MultiLevelLogging.current_level
+        current_level = get_current_level()
         set_log_parameters(msg, current_level + increment)
 
-    # TODO add block printing for lists and strings containing linebreaks
+    @staticmethod
+    def block(title, content, log_level=None):
+        """Print a python list or string containing newline characters
+        across multiple lines.
+        For lists each item is printed as a new message. Strings are
+        split at the newline characters and each printed as a new
+        message.
+        The title is printed at the log level passed in or the current
+        log level if not. The log level is then incremented and the
+        content block printed at this level. The original log level is
+        restored after the content is printed.
+        """
+        set_log_parameters(title, log_level)
+        current_level = get_current_level()
+        if isinstance(content, str):
+            content = content.split('\n')
+        for msgLine in content:
+            set_log_parameters(msgLine, current_level + 1)
+        set_level(current_level)
 
 
 # Moved from namespace
