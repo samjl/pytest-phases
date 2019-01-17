@@ -22,12 +22,12 @@ class LogLevel(object):
     @staticmethod
     def high_level_step(msg):
         """Print a message at the highest log level."""
-        set_log_parameters(msg, log_level=0)
+        set_log_parameters(msg, log_level=MIN_LEVEL)
 
     @staticmethod
     def detail_step(msg):
         """Print a message at the second highest log level."""
-        set_log_parameters(msg, log_level=1)
+        set_log_parameters(msg, log_level=MIN_LEVEL+1)
 
     @staticmethod
     def step(msg, log_level=None):
