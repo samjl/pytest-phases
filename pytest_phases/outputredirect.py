@@ -24,7 +24,8 @@ from .loglevels import (
     is_level_set,
     set_level,
     get_parents,
-    set_log_parameters
+    set_log_parameters,
+    get_tags
 )
 from .verify import SessionStatus
 
@@ -141,9 +142,14 @@ class LogOutputRedirection(object):
         log_entry["step"] = step
         log_entry["text"] = msg
         log_entry["parents"] = get_parents()
+        tags = get_tags()
+        if tags:
+            tags_console = "[{}]".format(", ".join(get_tags()))
+        else:
+            tags_console = ""
 
-        self.printStdout.write("{0[level]}-{0[step]} [{0[index]}] {0[text]}\n"
-                               .format(log_entry))
+        self.printStdout.write("{0[level]}-{0[step]} [{0[index]}]{1} {0["
+                               "text]}\n".format(log_entry, tags_console))
         self.printStdout.flush()
 
         # Complete session json log file.
@@ -175,4 +181,4 @@ class LogOutputRedirection(object):
                 f.write("]\n")
 
         # Insert a log message to MongoDB
-        SessionStatus.mongo.insert_log_message(index, level, step, msg)
+        SessionStatus.mongo.insert_log_message(index, level, step, msg, tags)

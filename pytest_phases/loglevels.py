@@ -30,12 +30,12 @@ class LogLevel(object):
         set_log_parameters(msg, log_level=MIN_LEVEL+1)
 
     @staticmethod
-    def step(msg, log_level=None):
+    def step(msg, log_level=None, tags=None):
         """Print a message at the specified or current log level.
         If optional argument log_level is not specified or None
         then the log level of the previous message is applied.
         """
-        set_log_parameters(msg, log_level)
+        set_log_parameters(msg, log_level, tags=tags)
 
     @staticmethod
     def verification(msg, result_type, log_level=None):
@@ -130,7 +130,27 @@ def get_current_index():
 
 def get_parents():
     return MultiLevelLogging.parent_indices
-# Moved from namespace
+
+
+def get_tags():
+    return MultiLevelLogging.tags
+
+
+def append_to_tags(original, new_tags):
+    if new_tags is None:
+        return original
+    elif isinstance(new_tags, str):
+        new_tags = new_tags.split(",")
+    return original.extend(new_tags)
+
+
+def set_tags(tags):
+    if tags is None:
+        MultiLevelLogging.tags = []
+        return
+    elif isinstance(tags, str):
+        tags = tags.split(",")
+    MultiLevelLogging.tags = [x.strip() for x in tags]
 
 
 def set_current_level(log_level):
@@ -143,7 +163,7 @@ def set_current_level(log_level):
     return MultiLevelLogging.current_level
 
 
-def set_log_parameters(msg, log_level, message_type=None):
+def set_log_parameters(msg, log_level, message_type=None, tags=None):
     """Prepend the string to print with the log level and step before
     printing.
     """
@@ -155,6 +175,7 @@ def set_log_parameters(msg, log_level, message_type=None):
     step, index = get_next_step(valid_log_level)
     MultiLevelLogging.log_level_set = True
     MultiLevelLogging.message_type = message_type
+    set_tags(tags)
     if CONFIG["no-redirect"].value:
         # Don't print index as it doesn't mean much in this situation
         # (not every message is given an index)
@@ -175,6 +196,7 @@ class MultiLevelLogging(object):
     current_l1_msg = None
     parent_indices = [None] * (MAX_LEVEL - MIN_LEVEL + 1)
     message_type = None
+    tags = []
 
 
 def get_next_step(log_level):

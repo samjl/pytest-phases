@@ -705,7 +705,7 @@ class MongoConnector(object):
         }
         update_one_document(self.db.testresults, match, update)
 
-    def insert_log_message(self, index, level, step, message):
+    def insert_log_message(self, index, level, step, message, tags):
         """
         Insert a log message to the testlogs collection. Insert the
         message ObjectId to the list in the corresponding loglinks
@@ -734,7 +734,8 @@ class MongoConnector(object):
             parentIndices=get_parents(),
             numOfChildren=0,
             timestamp=datetime.datetime.utcnow(),  # FIXME use time.time() instead
-            testResult=self.test_oid
+            testResult=self.test_oid,
+            tags=tags
         )
         # Insert the log message
         res = self.db.testlogs.insert_one(msg)
