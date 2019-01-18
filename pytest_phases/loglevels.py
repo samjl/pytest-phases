@@ -11,7 +11,7 @@ from builtins import object, range
 from .common import CONFIG
 
 MIN_LEVEL = 0
-MAX_LEVEL = 5
+MAX_LEVEL = 9
 
 
 class LogLevel(object):
@@ -51,6 +51,12 @@ class LogLevel(object):
         """
         current_level = get_current_level()
         set_log_parameters(msg, current_level + increment)
+
+    @staticmethod
+    def info(msg, tags=None):
+        info_tags = ['INFO']
+        append_to_tags(info_tags, tags)
+        set_log_parameters(msg, log_level=6, tags=info_tags)
 
     @staticmethod
     def block(title, content, log_level=None):
