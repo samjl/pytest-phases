@@ -12,6 +12,15 @@ from .common import CONFIG
 
 MIN_LEVEL = 0
 MAX_LEVEL = 9
+INFO_LEVEL = 6
+DEBUG_LEVEL = 8
+
+TAG_TO_LEVEL = {
+    "HIGH": MIN_LEVEL,
+    "DETAIL": MIN_LEVEL+1,
+    "INFO": INFO_LEVEL,
+    "DEBUG": DEBUG_LEVEL
+}
 
 
 class LogLevel(object):
@@ -54,12 +63,16 @@ class LogLevel(object):
 
     @staticmethod
     def info(msg, tags=None):
-        info_tags = ['INFO']
-        append_to_tags(info_tags, tags)
-        set_log_parameters(msg, log_level=6, tags=info_tags)
+        """Print an informational message at log level 6."""
+        set_log_parameters(msg, log_level=6, tags=tags)
 
     @staticmethod
-    def block(title, content, log_level=None):
+    def debug(msg, tags=None):
+        """Print an debug message at log level 8."""
+        set_log_parameters(msg, log_level=8, tags=tags)
+
+    @staticmethod
+    def block(title, content, log_level=None, tags=None):
         """Print a python list or string containing newline characters
         across multiple lines.
         For lists each item is printed as a new message. Strings are
@@ -70,12 +83,12 @@ class LogLevel(object):
         content block printed at this level. The original log level is
         restored after the content is printed.
         """
-        set_log_parameters(title, log_level)
+        set_log_parameters(title, log_level, tags=tags)
         current_level = get_current_level()
         if isinstance(content, str):
             content = content.split('\n')
         for msgLine in content:
-            set_log_parameters(msgLine, current_level + 1)
+            set_log_parameters(msgLine, current_level + 1, tags=tags)
         set_level(current_level)
 
 
@@ -150,22 +163,30 @@ def append_to_tags(original, new_tags):
     return original.extend(new_tags)
 
 
-def set_tags(tags):
+def set_tags(tags, log_level):
     if tags is None:
-        MultiLevelLogging.tags = []
-        return
+        tags = []
     elif isinstance(tags, str):
         tags = tags.split(",")
-    MultiLevelLogging.tags = [x.strip() for x in tags]
+    if log_level in (TAG_TO_LEVEL["INFO"], TAG_TO_LEVEL["INFO"]+1):
+        tags.append("INFO")
+    elif log_level in (TAG_TO_LEVEL["DEBUG"], TAG_TO_LEVEL["DEBUG"]+1):
+        tags.append("DEBUG")
+    tags = [x.strip() for x in tags]  # strip each tag
+    tags = list(set(tags))  # remove duplicate tags
+    MultiLevelLogging.tags = tags
 
 
 def set_current_level(log_level):
-    if log_level < MIN_LEVEL:
-        MultiLevelLogging.current_level = MIN_LEVEL
-    elif log_level > MAX_LEVEL:
-        MultiLevelLogging.current_level = MAX_LEVEL
-    else:
-        MultiLevelLogging.current_level = log_level
+    if isinstance(log_level, int):
+        if log_level < MIN_LEVEL:
+            MultiLevelLogging.current_level = MIN_LEVEL
+        elif log_level > MAX_LEVEL:
+            MultiLevelLogging.current_level = MAX_LEVEL
+        else:
+            MultiLevelLogging.current_level = log_level
+    elif log_level in TAG_TO_LEVEL.keys():
+        MultiLevelLogging.current_level = TAG_TO_LEVEL[log_level]
     return MultiLevelLogging.current_level
 
 
@@ -181,7 +202,7 @@ def set_log_parameters(msg, log_level, message_type=None, tags=None):
     step, index = get_next_step(valid_log_level)
     MultiLevelLogging.log_level_set = True
     MultiLevelLogging.message_type = message_type
-    set_tags(tags)
+    set_tags(tags, valid_log_level)
     if CONFIG["no-redirect"].value:
         # Don't print index as it doesn't mean much in this situation
         # (not every message is given an index)
@@ -190,6 +211,8 @@ def set_log_parameters(msg, log_level, message_type=None, tags=None):
         # if the output redirect enabled
         print(msg)
     MultiLevelLogging.log_level_set = False
+    MultiLevelLogging.message_type = None
+    set_tags(None, None)
 
 
 class MultiLevelLogging(object):
