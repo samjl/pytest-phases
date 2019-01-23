@@ -583,7 +583,7 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
 
     # Log failed and caught assertion (saved separately to db as
     # verification below)
-    LogLevel.verification("{} - FAIL".format(exc_msg), exc_type)
+    LogLevel.verification("{} - FAIL".format(exc_msg), exc_type, tags="FAIL")
     index = get_current_index()
     # Save the result and traceback
     s_res = SessionStatus.verifications.saved_results

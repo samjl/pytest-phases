@@ -158,6 +158,10 @@ def get_tags():
     return MultiLevelLogging.tags
 
 
+def get_message_type():
+    return MultiLevelLogging.message_type
+
+
 def append_to_tags(original, new_tags):
     if new_tags is None:
         return original

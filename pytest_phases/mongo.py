@@ -15,7 +15,7 @@ from builtins import object, range
 from pymongo import MongoClient
 from _pytest.runner import CallInfo
 from bson.objectid import ObjectId
-from .loglevels import MIN_LEVEL, MAX_LEVEL, get_parents
+from .loglevels import MIN_LEVEL, MAX_LEVEL, get_parents, get_message_type
 from .verify import SessionStatus
 from .common import DEBUG, CONFIG
 from .common import debug_print as debug_print_common
@@ -735,7 +735,8 @@ class MongoConnector(object):
             numOfChildren=0,
             timestamp=datetime.datetime.utcnow(),  # FIXME use time.time() instead
             testResult=self.test_oid,
-            tags=tags
+            tags=tags,
+            type=get_message_type()
         )
         # Insert the log message
         res = self.db.testlogs.insert_one(msg)

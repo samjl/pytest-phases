@@ -389,8 +389,8 @@ def perform_verification(fail_condition, fail_message, raise_immediately,
     else:
         verify_msg_log_level = log_level
     # Log the verification (inserted as verification to db via _save_result)
-    LogLevel.verification("{} - {}".format(msg, status), exc_type,
-                          log_level=verify_msg_log_level)
+    LogLevel.verification("{} - {}".format(msg, status), status[0],
+                          log_level=verify_msg_log_level, tags=status)
     index = get_current_index()
     _save_result(msg, status, exc_type, exc_tb, stop_at_test,
                  full_method_trace, raise_immediately, index)
