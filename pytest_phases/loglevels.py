@@ -23,21 +23,7 @@ TAG_TO_LEVEL = {
 }
 
 
-class LogLevel(object):
-    """Class containing logging methods used to apply a log level
-    to a message.
-    Note: This class should not and does not need to be instantiated.
-    """
-    @staticmethod
-    def high_level_step(msg):
-        """Print a message at the highest log level."""
-        set_log_parameters(msg, log_level=MIN_LEVEL)
-
-    @staticmethod
-    def detail_step(msg):
-        """Print a message at the second highest log level."""
-        set_log_parameters(msg, log_level=MIN_LEVEL+1)
-
+class LogCommon(object):
     @staticmethod
     def step(msg, log_level=None, tags=None):
         """Print a message at the specified or current log level.
@@ -45,24 +31,6 @@ class LogLevel(object):
         then the log level of the previous message is applied.
         """
         set_log_parameters(msg, log_level, tags=tags)
-
-    @staticmethod
-    def verification(msg, result_type, log_level=None, tags=None):
-        """Print a message relating to the result of the execution of
-        the verify function or a caught exception.
-        """
-        verify_tags = ['VERIFY']
-        append_to_tags(verify_tags, tags)
-        set_log_parameters(msg, log_level, message_type=result_type,
-                           tags=verify_tags)
-
-    @staticmethod
-    def step_increment(msg, increment=1):
-        """Increment the current log level and print message at the
-        new level.
-        """
-        current_level = get_current_level()
-        set_log_parameters(msg, current_level + increment)
 
     @staticmethod
     def info(msg, tags=None):
@@ -93,6 +61,79 @@ class LogLevel(object):
         for msgLine in content:
             set_log_parameters(msgLine, current_level + 1, tags=tags)
         set_level(current_level)
+
+
+class LogLevel(LogCommon):
+    """Class containing logging methods used to apply a log level
+    to a message.
+    Note: This class should not and does not need to be instantiated.
+    """
+    @staticmethod
+    def high_level_step(msg):
+        """Print a message at the highest log level."""
+        set_log_parameters(msg, log_level=MIN_LEVEL)
+
+    @staticmethod
+    def detail_step(msg):
+        """Print a message at the second highest log level."""
+        set_log_parameters(msg, log_level=MIN_LEVEL+1)
+
+    @staticmethod
+    def verification(msg, result_type, log_level=None, tags=None):
+        """Print a message relating to the result of the execution of
+        the verify function or a caught exception.
+        """
+        verify_tags = ['VERIFY']
+        append_to_tags(verify_tags, tags)
+        set_log_parameters(msg, log_level, message_type=result_type,
+                           tags=verify_tags)
+
+    @staticmethod
+    def step_increment(msg, increment=1):
+        """Increment the current log level and print message at the
+        new level.
+        """
+        current_level = get_current_level()
+        set_log_parameters(msg, current_level + increment)
+
+
+def add_library_tag(f):
+    def wrapper(*args, **kwargs):
+        # Add the library specific tag
+        all_tags = [args[0].tag]
+        if "tags" in kwargs.keys():
+            append_to_tags(all_tags, kwargs["tags"])
+        kwargs["tags"] = all_tags
+        # Ensure the log level is greater than those that specify test
+        # steps: INFO level or higher
+        if "log_level" in kwargs.keys():
+            if isinstance(kwargs["log_level"], str):
+                kwargs["log_level"] = TAG_TO_LEVEL[kwargs["log_level"]]
+            if kwargs["log_level"] < INFO_LEVEL:
+                kwargs["log_level"] = INFO_LEVEL
+        return f(*args, **kwargs)
+    return wrapper
+
+
+class LibraryLogging(LogCommon):
+    def __init__(self, library_tag):
+        self.tag = library_tag
+
+    @add_library_tag
+    def step(self, msg, log_level=None, tags=None):
+        super().step(msg, log_level, tags)
+
+    @add_library_tag
+    def info(self, msg, tags=None):
+        super().info(msg, tags)
+
+    @add_library_tag
+    def debug(self, msg, tags=None):
+        super().debug(msg, tags)
+
+    @add_library_tag
+    def block(self, title, content, log_level=None, tags=None):
+        super().block(title, content, log_level, tags)
 
 
 # Moved from namespace
