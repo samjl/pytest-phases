@@ -100,7 +100,7 @@ class LogLevel(LogCommon):
 def add_library_tag(f):
     def wrapper(*args, **kwargs):
         # Add the library specific tag
-        all_tags = [args[0].tag]
+        all_tags = [i for i in args[0].tag]
         if "tags" in kwargs.keys():
             append_to_tags(all_tags, kwargs["tags"])
         kwargs["tags"] = all_tags
@@ -116,8 +116,10 @@ def add_library_tag(f):
 
 
 class LibraryLogging(LogCommon):
-    def __init__(self, library_tag):
-        self.tag = library_tag
+    def __init__(self, library_tags):
+        if isinstance(library_tags, str):
+            library_tags = library_tags.split(",")
+        self.tag = library_tags
 
     @add_library_tag
     def step(self, msg, log_level=None, tags=None):
