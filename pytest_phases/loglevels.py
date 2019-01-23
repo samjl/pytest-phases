@@ -47,11 +47,14 @@ class LogLevel(object):
         set_log_parameters(msg, log_level, tags=tags)
 
     @staticmethod
-    def verification(msg, result_type, log_level=None):
+    def verification(msg, result_type, log_level=None, tags=None):
         """Print a message relating to the result of the execution of
         the verify function or a caught exception.
         """
-        set_log_parameters(msg, log_level, message_type=result_type)
+        verify_tags = ['VERIFY']
+        append_to_tags(verify_tags, tags)
+        set_log_parameters(msg, log_level, message_type=result_type,
+                           tags=verify_tags)
 
     @staticmethod
     def step_increment(msg, increment=1):
