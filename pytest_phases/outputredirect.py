@@ -25,7 +25,8 @@ from .loglevels import (
     set_level,
     get_parents,
     set_log_parameters,
-    get_tags
+    get_tags,
+    set_tags
 )
 from .verify import SessionStatus
 
@@ -93,21 +94,25 @@ class LogOutputRedirection(object):
                 else:
                     log_level = increment_level(1)
                 step, index = get_step_for_level(log_level)
-                self.write_log_step(msg_line, log_level, step, index)
+                set_tags([], log_level)
+                tags = get_tags()
+                self.write_log_step(msg_line, log_level, step, index, tags)
                 increment_level(-1)
 
         else:
             log_level = get_current_level()
             step, index = get_current_step(log_level)
+            tags = get_tags()
             if msg == "":
                 # Printing empty message
-                self.write_log_step(msg, log_level, step, index)
+                self.write_log_step(msg, log_level, step, index, tags)
             else:
                 # split \n and print separately for each line
                 msg_list = msg.split('\n')
                 msg_list = [_f for _f in msg_list if _f]
                 if msg_list:
-                    self.write_log_step(msg_list[0], log_level, step, index)
+                    self.write_log_step(msg_list[0], log_level, step, index,
+                                        tags)
                     if len(msg_list) > 1:
                         for msg_line in msg_list[1:]:
                             # If the message has been split into multiple
@@ -118,7 +123,7 @@ class LogOutputRedirection(object):
                             # log level is not set condition above.
                             step, index = get_step_for_level(log_level)
                             self.write_log_step(msg_line, log_level, step,
-                                                index)
+                                                index, tags)
 
     def flush(self):
         # Do nothing. Flush is performed in write -> write_log_step ->
@@ -128,7 +133,7 @@ class LogOutputRedirection(object):
     def isatty(self):
         return False
 
-    def write_log_step(self, msg, level, step, index):
+    def write_log_step(self, msg, level, step, index, tags):
         # Write the log message to all enabled outputs.
         msg = re.sub('[\r\n]', '', msg)
         msg = msg.rstrip()
@@ -142,13 +147,12 @@ class LogOutputRedirection(object):
         log_entry["step"] = step
         log_entry["text"] = msg
         log_entry["parents"] = get_parents()
-        tags = get_tags()
         if tags:
             tags_console = "[{}]".format(", ".join(get_tags()))
         else:
             tags_console = ""
 
-        self.printStdout.write("{0[level]}-{0[step]} [{0[index]}]{1} {0["
+        self.printStdout.write("{0[level]}-{0[step]} [{0[index]}] {1} {0["
                                "text]}\n".format(log_entry, tags_console))
         self.printStdout.flush()
 
