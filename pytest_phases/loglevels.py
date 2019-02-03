@@ -307,3 +307,11 @@ def reset_higher_levels(log_level):
     # Reset step to 0 for all log levels higher than specified.
     for level in range(log_level+1, MAX_LEVEL+1):
         reset_level_step(level)
+
+
+def log_method(f):
+    def wrapper(*args, **kwargs):
+        args[0].log.step("{0.__module__}::{0.__name__}, args: {1}, kwargs: {2}"
+                         .format(f, args[1:], kwargs), log_level="DEBUG")
+        return f(*args, **kwargs)
+    return wrapper
