@@ -222,6 +222,9 @@ class SessionStatus(object):
     prev_teardown = None  # Track the most recently completed teardown
     # fixture so it can be assigned to any regular assertions raised
     test_outcome = {}
+    # summary is determined and then the run_order is cleared. This attribute
+    # keeps track of all (module) test outcomes across a session.
+    session_summary = {}
 
     # MongoDB
     mongo = None
