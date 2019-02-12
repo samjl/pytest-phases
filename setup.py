@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pytest-phases",
-    version='0.13.0',
+    version='0.13.1',
     author='Sam Lea',
     author_email='samjlea@gmail.com',
     packages=find_packages(),
