@@ -675,6 +675,7 @@ def pytest_report_teststatus(report):
             # (or are concerned) about any session scoped fixtures.
             # FIXME or would print for all tests that have no fixtures!
             summary = final_test_outcomes()
+            SessionStatus.session_summary.update(summary)
             module_saved_results(SessionStatus.module)
             final_summary(summary)
             # Clear the run order now that the results have been updated
@@ -779,6 +780,19 @@ def pytest_terminal_summary(terminalreporter):
     """ override the terminal summary reporting. """
     # DEBUG ONLY
     debug_print("In pytest_terminal_summary", DEBUG["summary"])
+    debug_print("Overall session test outcomes (summary) - {}"
+                .format(SessionStatus.session_summary), DEBUG["summary"])
+    # Check for any outcome other than a passed and
+    SessionStatus.session_summary.pop(Outcomes.passed, 0)
+    if SessionStatus.session_summary:
+        debug_print("Outcomes other than passed exist, exit with error code 1",
+                    DEBUG["summary"])
+        exit_code = 1
+    else:
+        debug_print("Only outcome is passed (or none), exit with code 0",
+                    DEBUG["summary"])
+        exit_code = 0
+
     if DEBUG["verify"]:
         debug_print("Saved Results (dictionaries)", DEBUG["verify"])
         for i, res in enumerate(SessionStatus.verifications.saved_results):
@@ -859,6 +873,9 @@ def pytest_terminal_summary(terminalreporter):
                                  "info)")
         for line in lines:
             LogLevel.detail_step(line)
+        debug_print("Pytest warnings or collection errors reported, exit with "
+                    "error code 1", DEBUG["summary"])
+        exit_code = 1
     else:
         LogLevel.high_level_step("No collection errors, skips, xFail/xPass or "
                                  "pytest-warnings")
@@ -880,7 +897,8 @@ def pytest_terminal_summary(terminalreporter):
     # # END OF DEBUG
 
     # Exit now and don't print the original pytest summary
-    exit()  # FIXME use correct exit code - how does pytest decide this?
+    exit(exit_code)
+    # TODO expand to have unique codes for each outcome type
     # TODO exit code can be used to inform jenkins if the test session
     # passed or failed (or warned)
     # print("Anything following this message is the original pytest code")
