@@ -107,8 +107,8 @@ CONFIG = {
         ConfigOption(str, None, "Jenkins upstream trigger job name"),
     "trigger-job-number":
         ConfigOption(int, 0, "Jenkins upstream trigger job number"),
-    # "cfg":
-    #     ConfigOption(str, None, "cfg file path"),
+    "disable-exit-code":
+        ConfigOption(bool, False, "Pytest always exits with success code 0"),
 }
 
 MONGO_CONFIG = {
