@@ -71,6 +71,8 @@ CONFIG = {
     "python-log-level":
         ConfigOption(str, "NOTSET", "Python logging module level ("
                                     "redirected to plugin log level 5)"),
+    "terminal-max-level":
+        ConfigOption(int, None, "Maximum log level to print to the terminal"),
     # Aviat specific options below
     "sw-major":
         ConfigOption(str, None, "Software under test major version"),

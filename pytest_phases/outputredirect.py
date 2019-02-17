@@ -142,9 +142,11 @@ class LogOutputRedirection(object):
         log_entry["text"] = msg
         log_entry["parents"] = get_parents()
 
-        self.printStdout.write("{0[level]}-{0[step]} [{0[index]}] {0[text]}\n"
-                               .format(log_entry))
-        self.printStdout.flush()
+        if (CONFIG["terminal-max-level"].value is None or
+                level <= CONFIG["terminal-max-level"].value):
+            self.printStdout.write("{0[level]}-{0[step]} [{0[index]}] "
+                                   "{0[text]}\n".format(log_entry))
+            self.printStdout.flush()
 
         # Complete session json log file.
         # Ensure the file always contains valid JSON.
