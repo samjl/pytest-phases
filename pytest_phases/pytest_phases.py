@@ -897,7 +897,10 @@ def pytest_terminal_summary(terminalreporter):
     # # END OF DEBUG
 
     # Exit now and don't print the original pytest summary
-    exit(exit_code)
+    if CONFIG["disable-exit-code"].value:
+        exit(0)
+    else:
+        exit(exit_code)
     # TODO expand to have unique codes for each outcome type
     # TODO exit code can be used to inform jenkins if the test session
     # passed or failed (or warned)

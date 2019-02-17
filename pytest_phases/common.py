@@ -71,6 +71,8 @@ CONFIG = {
     "python-log-level":
         ConfigOption(str, "NOTSET", "Python logging module level ("
                                     "redirected to plugin log level 5)"),
+    "terminal-max-level":
+        ConfigOption(int, None, "Maximum log level to print to the terminal"),
     # Aviat specific options below
     "sw-major":
         ConfigOption(str, None, "Software under test major version"),
@@ -105,8 +107,8 @@ CONFIG = {
         ConfigOption(str, None, "Jenkins upstream trigger job name"),
     "trigger-job-number":
         ConfigOption(int, 0, "Jenkins upstream trigger job number"),
-    # "cfg":
-    #     ConfigOption(str, None, "cfg file path"),
+    "disable-exit-code":
+        ConfigOption(bool, False, "Pytest always exits with success code 0"),
 }
 
 MONGO_CONFIG = {

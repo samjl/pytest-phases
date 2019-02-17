@@ -152,9 +152,11 @@ class LogOutputRedirection(object):
         else:
             tags_console = ""
 
-        self.printStdout.write("{0[level]}-{0[step]} [{0[index]}] {1} {0["
-                               "text]}\n".format(log_entry, tags_console))
-        self.printStdout.flush()
+        if (CONFIG["terminal-max-level"].value is None or
+                level <= CONFIG["terminal-max-level"].value):
+            self.printStdout.write("{0[level]}-{0[step]} [{0[index]}] {1} {0["
+                                   "text]}\n".format(log_entry, tags_console))
+            self.printStdout.flush()
 
         # Complete session json log file.
         # Ensure the file always contains valid JSON.
