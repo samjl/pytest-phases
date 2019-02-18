@@ -148,13 +148,15 @@ class LogOutputRedirection(object):
         log_entry["text"] = msg
         log_entry["parents"] = get_parents()
         if tags:
-            tags_console = "[{}]".format(", ".join(get_tags()))
+            tags_console = " [{}]".format(", ".join(get_tags()))
         else:
             tags_console = ""
 
+        # Write to original stdout (terminal)
         if (CONFIG["terminal-max-level"].value is None or
                 level <= CONFIG["terminal-max-level"].value):
-            self.printStdout.write("{0[level]}-{0[step]} [{0[index]}] {1} {0["
+
+            self.printStdout.write("{0[level]}-{0[step]} [{0[index]}]{1} {0["
                                    "text]}\n".format(log_entry, tags_console))
             self.printStdout.flush()
 
