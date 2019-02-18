@@ -160,32 +160,22 @@ class LogOutputRedirection(object):
                                    "text]}\n".format(log_entry, tags_console))
             self.printStdout.flush()
 
-        # Complete session json log file.
-        # Ensure the file always contains valid JSON.
-        if LogOutputRedirection.json_log and \
-                LogOutputRedirection.session_file_path:
-            if os.stat(LogOutputRedirection.session_file_path).st_size != 0:
-                with open(LogOutputRedirection.session_file_path, "rb+") as f:
-                    f.seek(-2, os.SEEK_END)
-                    f.write(",\n")
-            with open(LogOutputRedirection.session_file_path, "a") as f:
-                if os.stat(LogOutputRedirection.session_file_path).st_size == 0:
-                    f.write("[")
-                json.dump(log_entry, f, separators=(",", ":"))
-                f.write("]\n")
-
-        # Test function specific json log file. Contains setup, call
-        # and teardown.
-        if LogOutputRedirection.json_log and \
-                LogOutputRedirection.test_file_path:
-            if os.stat(LogOutputRedirection.test_file_path).st_size != 0:
-                with open(LogOutputRedirection.test_file_path, "rb+") as f:
-                    f.seek(-2, os.SEEK_END)
-                    f.write(",\n")
-            with open(LogOutputRedirection.test_file_path, "a") as f:
-                if os.stat(LogOutputRedirection.test_file_path).st_size == 0:
-                    f.write("[")
-                json.dump(log_entry, f, separators=(",", ":"))
+        # Write to json files if enabled (no-json==false)
+        if LogOutputRedirection.json_log:
+            # Complete session json log file and test function specific
+            # json log file. Contains setup, call and teardown.
+            paths = (LogOutputRedirection.session_file_path,
+                     LogOutputRedirection.test_file_path)
+            for path in paths:
+                if path and os.stat(path).st_size != 0:
+                    with open(path, "rb+") as f:
+                        f.seek(-2, os.SEEK_END)
+                        f.write(",\n")
+                with open(path, "a") as f:
+                    if os.stat(path).st_size == 0:
+                        f.write("[")
+                    json.dump(log_entry, f, separators=(",", ":"))
+                    f.write("]\n")
                 f.write("]\n")
 
         # Insert a log message to MongoDB
