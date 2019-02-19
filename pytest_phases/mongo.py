@@ -9,6 +9,7 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 from __future__ import division
 import datetime
+import getpass
 import time
 from future import standard_library
 from builtins import object, range
@@ -181,6 +182,7 @@ class MongoConnector(object):
             testRig=test_rig,
             devices=[],  # FIXME is this still useful?
             testVersion=test_version,
+            user=getpass.getuser(),
             plan="ObjectId link",
             sessionId=self.session_id,
             embeddedVersion=embedded_version,
