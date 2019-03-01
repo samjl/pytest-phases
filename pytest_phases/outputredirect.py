@@ -96,34 +96,70 @@ class LogOutputRedirection(object):
                 step, index = get_step_for_level(log_level)
                 set_tags([], log_level)
                 tags = get_tags()
-                self.write_log_step(msg_line, log_level, step, index, tags)
+                self.write_log_to_console(msg_line, log_level, step, index,
+                                          tags)
+                SessionStatus.mongo.insert_log_message(index, log_level, step,
+                                                       msg, tags)
                 increment_level(-1)
 
         else:
             log_level = get_current_level()
-            step, index = get_current_step(log_level)
             tags = get_tags()
             if msg == "":
                 # Printing empty message
-                self.write_log_step(msg, log_level, step, index, tags)
+                step, index = get_current_step(log_level)
+                self.write_log_to_console(msg, log_level, step, index, tags)
+                SessionStatus.mongo.insert_log_message(index, log_level, step,
+                                                       msg, tags)
             else:
                 # split \n and print separately for each line
                 msg_list = msg.split('\n')
                 msg_list = [_f for _f in msg_list if _f]
                 if msg_list:
-                    self.write_log_step(msg_list[0], log_level, step, index,
-                                        tags)
+                    if len(msg_list) == 1:
+                        step, index = get_current_step(log_level)
+                        self.write_log_to_console(msg_list[0], log_level, step,
+                                                  index, tags)
+                        SessionStatus.mongo.insert_log_message(
+                            index, log_level, step, msg, tags
+                        )
+                    # MongoDB bulk insert for single prints with string
+                    # message split with \n character.
                     if len(msg_list) > 1:
-                        for msg_line in msg_list[1:]:
-                            # If the message has been split into multiple
-                            # lines then for each line the step and index
-                            # are incremented. A possible design change
-                            # could be to increment the index but keep
-                            # the step the same. Would also apply to if
-                            # log level is not set condition above.
-                            step, index = get_step_for_level(log_level)
-                            self.write_log_step(msg_line, log_level, step,
-                                                index, tags)
+                        # FIXME add a parameter for this console_suppress_block
+                        if len(msg_list) > 5000:
+                            self.printStdout.write(
+                                "WARNING: Console log has been suppressed "
+                                "because this block is longer than 5000 "
+                                "lines\n"
+                            )
+                            self.printStdout.flush()
+                            suppress = True
+                        else:
+                            suppress = False
+                        msgs = []
+                        for i, msg_line in enumerate(msg_list):
+                            msg_clean = self.clean_message(msg_line)
+                            if i == 0:
+                                step, index = get_current_step(log_level)
+                            else:
+                                step, index = get_step_for_level(log_level)
+                            parent_indices = list(get_parents())
+                            msgs.append(dict(
+                                index=index,
+                                level=log_level,
+                                step=step,
+                                message=msg_clean,
+                                tags=tags,
+                                parent_indices=parent_indices
+                            ))
+
+                            if not suppress:
+                                self.write_log_to_console(
+                                    msg_clean, log_level, step, index, tags
+                                )
+                        # Bulk insert the block of messages
+                        SessionStatus.mongo.bulk_insert_log_messages(msgs)
 
     def flush(self):
         # Do nothing. Flush is performed in write -> write_log_step ->
@@ -133,50 +169,24 @@ class LogOutputRedirection(object):
     def isatty(self):
         return False
 
-    def write_log_step(self, msg, level, step, index, tags):
-        # Write the log message to all enabled outputs.
+    def clean_message(self, msg):
         msg = re.sub('[\r\n]', '', msg)
         msg = msg.rstrip()
-
         if not isinstance(msg, str):
             msg = str(msg, errors='replace')
+        return msg
 
-        log_entry = OrderedDict()
-        log_entry["index"] = index
-        log_entry["level"] = level
-        log_entry["step"] = step
-        log_entry["text"] = msg
-        log_entry["parents"] = get_parents()
+    def write_log_to_console(self, msg, level, step, index, tags):
+        # Write the log message to the console (original stdout before
+        # redirection).
         if tags:
             tags_console = " [{}]".format(", ".join(get_tags()))
         else:
             tags_console = ""
 
-        # Write to original stdout (terminal)
         if (CONFIG["terminal-max-level"].value is None or
                 level <= CONFIG["terminal-max-level"].value):
 
-            self.printStdout.write("{0[level]}-{0[step]} [{0[index]}]{1} {0["
-                                   "text]}\n".format(log_entry, tags_console))
+            self.printStdout.write("{0}-{1} [{2}]{3} {4}\n".format(
+                level, step, index, tags_console, msg))
             self.printStdout.flush()
-
-        # Write to json files if enabled (no-json==false)
-        if LogOutputRedirection.json_log:
-            # Complete session json log file and test function specific
-            # json log file. Contains setup, call and teardown.
-            paths = (LogOutputRedirection.session_file_path,
-                     LogOutputRedirection.test_file_path)
-            for path in paths:
-                if path and os.stat(path).st_size != 0:
-                    with open(path, "rb+") as f:
-                        f.seek(-2, os.SEEK_END)
-                        f.write(",\n")
-                with open(path, "a") as f:
-                    if os.stat(path).st_size == 0:
-                        f.write("[")
-                    json.dump(log_entry, f, separators=(",", ":"))
-                    f.write("]\n")
-                f.write("]\n")
-
-        # Insert a log message to MongoDB
-        SessionStatus.mongo.insert_log_message(index, level, step, msg, tags)

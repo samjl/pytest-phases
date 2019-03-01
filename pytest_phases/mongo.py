@@ -707,6 +707,59 @@ class MongoConnector(object):
         }
         update_one_document(self.db.testresults, match, update)
 
+    def bulk_insert_log_messages(self, msgs_log_params):
+        # log level is same for all these messages
+        log_level = msgs_log_params[0]["level"]
+        docs = []
+        for msg in msgs_log_params:
+            docs.append(
+                dict(
+                    sessionId=self.session_id,
+                    moduleName=SessionStatus.module,
+                    className=SessionStatus.class_name,
+                    testName=SessionStatus.test_function,
+                    index=msg["index"],
+                    level=msg["level"],
+                    step=msg["step"],
+                    message=escape_html(msg["message"]),
+                    parents=MongoConnector.parents[:log_level - MIN_LEVEL],
+                    parentIndices=msg["parent_indices"],
+                    numOfChildren=0,
+                    timestamp=datetime.datetime.utcnow(),  # FIXME use time.time() instead
+                    testResult=self.test_oid,
+                    tags=msg["tags"],
+                    type=get_message_type()
+                )
+            )
+
+        res = self.db.testlogs.insert_many(docs)
+        # Update self.db.loglinks with the ObjectId of this message entry
+        self.db.loglinks.update_one({
+            "_id": self.link_oid
+            },
+            {
+            "$push": {
+                "logIds": {
+                    "$each": res.inserted_ids
+                           }
+                      }
+            }
+        )
+        # Update parent entries in the db: increment the number of children
+        for parent_id in MongoConnector.parents[:log_level - MIN_LEVEL]:
+            self.db.testlogs.update_one({
+                "_id": parent_id
+                },
+                {
+                "$inc": {
+                    "numOfChildren": len(docs)
+                        }
+                }
+            )
+        MongoConnector.parents[log_level - MIN_LEVEL] = res.inserted_ids[-1]
+        for i in range(log_level-MIN_LEVEL+1, len(MongoConnector.parents)):
+            MongoConnector.parents[i] = "-"
+
     def insert_log_message(self, index, level, step, message, tags):
         """
         Insert a log message to the testlogs collection. Insert the
