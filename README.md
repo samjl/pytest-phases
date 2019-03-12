@@ -154,7 +154,7 @@ Content may be a:
     
 Example using list of strings:
 ```python 
-self.log.block("Numbers 1-3", ["ONE", "TWO", "THREE"])
+log.block("Numbers 1-3", ["ONE", "TWO", "THREE"])
 ```
 output:
 
@@ -165,7 +165,7 @@ output:
 
 Example using newline separated string:
 ```python
-self.log.block("Start of the alphabet", "A\nB\nC", log_level="INFO")
+log.block("Start of the alphabet", "A\nB\nC", log_level="INFO")
 ```
 output:
 
