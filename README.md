@@ -8,12 +8,20 @@
 - [High Level Step](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#highest-level-log-level-1)
 - [Detail Level Step](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#detail-level-log-level-2)
 - [Custom Level Step](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#other-log-levels)
+- [Info Level Step](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#informational-level-log-levels-6-7)
+- [Debug Level Step](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#debugging-level-log-levels-8-9)
+- [Block of Messages](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#printing-a-block-of-messages)
+- [Message Tagging](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#printing-a-block-of-messages)
 
 [Verifications](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#verifications)
 - [verify function](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#verify-function-format-options-and-return)
 - [Basic Usage](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#basic-usage)
 - [Warnings](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#raising-warnings)
 - [Failure and Warning Conditions](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#verifications-including-failure-and-warning-conditions)
+
+[aviattestlib Integration](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#integration-into-aviat-test-library-aviattestlib-modules)
+- [Log Levels and Tagging](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#automatic-log-level-application-and-tagging)
+- [Method Call Logging](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#method-call-logging)
 
 [Plugin Configuration](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#plugin-configuration)
 - [Verification Options](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#verification-configuration-options)
@@ -46,11 +54,18 @@ May be a conflict between this and the logging plugin but not found the root cau
 Related to [this](https://github.com/pytest-dev/pytest/issues/3099) pytest defect.
 * -p no:logging disable the logging plugin
 
+## Imports
+Import the logging and verification APIs using:
+```python
+from pytest-phases import log, verify
+```
+
 ## Log Messages
 ### Highest level (log level 1)
 Print a message at the highest log level (1)
-
-    log.high_level_step("Very important test step 1")
+```python
+log.high_level_step("Very important test step 1")
+```
 which is then printed in the log output as
 
     1-1 High level step: Very important, first test step
@@ -65,36 +80,120 @@ where the 2 indicates it is the second step at level 1.
 
 ### Detail Level (log level 2)
 Print a message at log level 2
-
-    log.detail_step("More detailed test step information")
+```python
+log.detail_step("More detailed test step information")
+```
 output:
 
     2-1 Detail level step: More detailed test step information
     
 ### Other log levels
 The step function prints at the current log level if the log_level parameter is not defined
-    
-    log.step("This will be the next step at the current log level")
+```python 
+log.step("This will be the next step at the current log level")
+```
 output:    
 
     2-2 Detail level step: This will be the next step at the current log level
     
 Specifying a log level using the step function:
-    
-    log.step("Specify the log level", log_level=3)
+```python
+log.step("Specify the log level", log_level=3)
+```
 output:
 
     3-1 Step: Specify the log level
 
 Increment the current log level and print the message (default increment is 1 but can be specified using the increment parameter):
-    
-    log.step_increment("Increment the log level")
-    log.step("Another step at this incremented level")
+```python 
+log.step_increment("Increment the log level")
+log.step("Another step at this incremented level")
+```
 output:
 
     4-1 Step inc: Increment the log level
     4-2 Step: Another step at this incremented level
 
+Using the tags as detailed below will also automatically set the associated 
+log level
+
+    "HIGH": Level 0
+    "DETAIL": Level 1
+    "INFO": Level 6
+    "DEBUG": Level 8
+
+### Informational Level (log levels 6-7)
+Print an information level message at log level 6.
+```python
+log.info("Informational message")
+```
+This is also equivalent to using the "INFO" tag in the step method.
+Level 7 is used for printing blocks of messages below, see below.
+
+### Debugging Level (log levels 8-9)
+Print an information level message at log level 8.
+```python    
+log.debug("Informational message")
+```
+This is also equivalent to using the "DEBUG" tag in the step method.
+Level 9 is used for printing blocks of messages below, see below.
+
+### Printing a Block of Messages
+It is possible to print a block of messages under a given message (title). 
+The title is printed at the specified log level (or current level if not 
+specified). In this way large blocks of related logs can easily be folded 
+under the title message. 
+
+The content defines the information to be split and printed as a
+ block of messages at the next log level (log_level + 1). 
+ 
+Content may be a:
+    string (split at occurrences of '\n' and each element is printed as a 
+    new message)
+    list (each item is printed as a new message)
+    
+Example using list of strings:
+```python 
+self.log.block("Numbers 1-3", ["ONE", "TWO", "THREE"])
+```
+output:
+
+    1-1 Numbers 1-3
+    2-1 ONE
+    2-2 TWO
+    2-3 THREE
+
+Example using newline separated string:
+```python
+self.log.block("Start of the alphabet", "A\nB\nC", log_level="INFO")
+```
+output:
+
+    6-1 Start of the alphabet
+    7-1 A
+    7-2 B
+    7-3 C
+
+Note that after the block is printed the log level reverts to the original 
+log level used by the title.
+
+### Message Tagging
+Tags can be added to messages to group or related messages or mark specific 
+messages. Tags can be added as a string (comma separated) or list of strings.
+Examples:
+single tag
+```python
+log.step("Step related to a specific test rig", tags="192.11.1.2")
+```
+multiple tags
+```python        
+log.step("Step related to 2 test rigs", tags="192.11.1.1, 192.11.1.2")
+```
+or
+```python
+log.step("Step related to 2 test rigs", tags=["192.11.1.1", "192.11.1.2"])
+```
+    
 ## Verifications
 ### verify Function Format, Options and Return
 
@@ -147,12 +246,6 @@ verification.
 
 
 ### Basic Usage
-
-Import the verify function from the pytest namespace:
-```python
-from pytest import log, verify
-```
-
 Basic use in place of a regular assert statement. Behaviour is identical to assert,
 the exception is raised immediately and the test is torn down and ended.
 ```python
@@ -210,6 +303,28 @@ verify(x is True, "test x is True (initial pass)",
        warn_message="test y is True (initial pass->warning)")
 ```
 
+## Integration into Aviat Test Library (aviattestlib) Modules
+### Automatic Log Level Application and Tagging
+Each library has its own instance of the LibraryLogging class in its base 
+class. Any tags that you wan to associate with the library are passed to the
+ LibraryLogging init method. For example the VLAN library adds the tags VLAN
+  and the IP address of the node it applies to:
+```python
+self.log = LibraryLogging([management.ip_address, "VLAN"])
+```
+Each message recorded by self.log.step/info/debug are then tagged 
+appropriately.  
+    
+### Method Call Logging
+Each method in the library (excluding the base class abstract methods) is 
+wrapped by a special `log_method` function. Every call to the library method
+ is logged at the DEBUG (8) level. The parent module and method name along 
+ with its non-keyworded and keyworded arguments are logged.
+ 
+ Example of method call logging:
+ 
+    8-2 [45] [11.19.11.35, DEBUG, VLAN] aviattestlib.vlan.netconf.vlan_netconf_ctr8700::vlan_name, args: (100, '"Customer traffic"'), kwargs: {}
+    
 ## Plugin Configuration
 The plugin can be configured by editing the config.cfg file created when the plugin is installed.
 (This is created within the site-packages/pytest-verify directory).
@@ -240,18 +355,11 @@ Print up to the maximum limit (integer) of stack trace entries.
 
 ## Future Work
 ### Log Levels
-- Add function to print blocks of messages such as lists
 - Add ability (via config flag) to continue to the call phase of the test if setup raises a warning (or failure)
-- Add database support (log messages + status live updates)
 - Choose type of exception to raise
-- Add verify parameter to disable printing and saving the result if it is a passes
+- Add verify parameter to disable (suppress) printing and saving the result if
+ it is a passes
 ### Verifications
-Complete results table: add traceback to rows that warn/fail
-
-Highlight active setups and their status for each test function result
-
-Update the pytest status line using the new information (e.g 1 setup-warning, 2 passes)
-
 Enhancement: test to decide whether teardown is required if test passes
 (useful when using the same function scoped setup for multiple test functions)
 
