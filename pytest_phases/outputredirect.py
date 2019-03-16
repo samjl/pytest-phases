@@ -85,7 +85,7 @@ class LogOutputRedirection(object):
         if isinstance(msg, bytes):
             msg = str(msg, "utf8")
         if not is_level_set():
-            msg_list = msg.split('\n')
+            msg_list = re.split('\r\n|\n|\r', msg)
             msg_list = [_f for _f in msg_list if _f]
             for msg_line in msg_list:
                 level_reset_required = _is_start_or_end(msg)
@@ -99,7 +99,7 @@ class LogOutputRedirection(object):
                 self.write_log_to_console(msg_line, log_level, step, index,
                                           tags)
                 SessionStatus.mongo.insert_log_message(index, log_level, step,
-                                                       msg, tags)
+                                                       msg_line, tags)
                 increment_level(-1)
 
         else:
@@ -121,7 +121,7 @@ class LogOutputRedirection(object):
                         self.write_log_to_console(msg_list[0], log_level, step,
                                                   index, tags)
                         SessionStatus.mongo.insert_log_message(
-                            index, log_level, step, msg, tags
+                            index, log_level, step, msg_list[0], tags
                         )
                     # MongoDB bulk insert for single prints with string
                     # message split with \n character.
