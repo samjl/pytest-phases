@@ -127,8 +127,9 @@ def pytest_configure(config):
 
     SessionStatus.mongo = MongoConnector(
         MONGO_CONFIG["enable"].value,
-        MONGO_CONFIG["hosts"].value.split(","),
-        MONGO_CONFIG["db"].value
+        [host.strip() for host in MONGO_CONFIG["hosts"].value.split(',')],
+        MONGO_CONFIG["db"].value,
+        MONGO_CONFIG["replica-set"].value
     )
 
     if not CONFIG["no-redirect"].value:

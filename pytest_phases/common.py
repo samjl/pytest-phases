@@ -117,6 +117,8 @@ MONGO_CONFIG = {
                                  "True"),
     "hosts":
         ConfigOption(str, None, "Specify mongoDB hosts"),
+    "replica-set":
+        ConfigOption(str, "", "Specify mongoDB replica set"),
     "db":
         ConfigOption(str, None, "Specify MongoDB database to use (FOR TESTING "
                                 "PURPOSES ONLY)"),

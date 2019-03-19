@@ -96,9 +96,13 @@ class MongoConnector(object):
         self = super().__new__(cls)
         return self
 
-    def __init__(self, enable, hosts, db_name):
+    def __init__(self, enable, hosts, db_name, replica_set):
         if enable:
-            self.db = MongoClient(hosts)[db_name]
+            if replica_set:
+                client = MongoClient(host=hosts, replicaset=replica_set)
+            else:
+                client = MongoClient(host=hosts)
+            self.db = client[db_name]
             self.session_id = None
             self.session_oid = None
             self.module_oid = None
