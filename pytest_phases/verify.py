@@ -23,7 +23,7 @@ from .common import (
 from .common import debug_print as debug_print_common
 from .loglevels import (
     LogLevel,
-    get_current_l1_msg,
+    get_current_min_level_msg,
     get_current_level,
     get_current_index
 )
@@ -242,7 +242,7 @@ class Result(object):
                  source_locals=None, fail_traceback_link=None,
                  use_prev_teardown=False):
         # Basic result information
-        self.step = get_current_l1_msg()
+        self.step = get_current_min_level_msg()
         self.msg = message
         self.status = status
         self.message_index = message_index

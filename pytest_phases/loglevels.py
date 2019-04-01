@@ -185,8 +185,8 @@ def set_level(log_level):
     return set_current_level(log_level)
 
 
-def get_current_l1_msg():
-    return MultiLevelLogging.current_l1_msg
+def get_current_min_level_msg():
+    return MultiLevelLogging.current_min_level_msg
 
 
 def get_current_index():
@@ -247,8 +247,8 @@ def set_log_parameters(msg, log_level, message_type=None, tags=None):
     if log_level is None:
         log_level = MultiLevelLogging.current_level
     valid_log_level = set_current_level(log_level)
-    if MultiLevelLogging.current_level == 1:
-        MultiLevelLogging.current_l1_msg = msg
+    if MultiLevelLogging.current_level == MIN_LEVEL:
+        MultiLevelLogging.current_min_level_msg = msg
     step, index = get_next_step(valid_log_level)
     MultiLevelLogging.log_level_set = True
     MultiLevelLogging.message_type = message_type
@@ -272,7 +272,7 @@ class MultiLevelLogging(object):
     current_level = 1
     current_step = [0] * (MAX_LEVEL - MIN_LEVEL + 1)
     log_level_set = False
-    current_l1_msg = None
+    current_min_level_msg = None
     parent_indices = [None] * (MAX_LEVEL - MIN_LEVEL + 1)
     message_type = None
     tags = []
