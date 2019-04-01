@@ -127,11 +127,12 @@ class LogOutputRedirection(object):
                     # message split with \n character.
                     if len(msg_list) > 1:
                         # FIXME add a parameter for this console_suppress_block
-                        if len(msg_list) > 5000:
+                        len_of_msg_block = len(msg_list)
+                        if len(msg_list) > 1000:
                             self.printStdout.write(
                                 "WARNING: Console log has been suppressed "
-                                "because this block is longer than 5000 "
-                                "lines\n"
+                                "because this block is longer than 1000 "
+                                "lines (len is {})\n".format(len_of_msg_block)
                             )
                             self.printStdout.flush()
                             suppress = True
