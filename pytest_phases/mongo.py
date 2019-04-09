@@ -756,8 +756,6 @@ class MongoConnector(object):
                 )
 
             res = self.db.testlogs.insert_many(docs)
-            print(res)
-            # res,inserted_ids
             # Update self.db.loglinks with the ObjectId of this message entry
             self.db.loglinks.update_one(
                 {"_id": self.link_oid},
