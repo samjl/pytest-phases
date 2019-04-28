@@ -952,6 +952,47 @@ class MongoConnector(object):
         update_one_document(self.db.sessions, dict(_id=self.session_oid),
                             {"$set": dict(status="complete")})
 
+    def _find_testrig_devices(self, device_name, all_testrig_devices):
+        match = {"devices": {"$elemMatch": {"name": device_name}}}
+        if not all_testrig_devices:
+            # Use single device from testrig only
+            print("Checking reservation state of device {}"
+                  .format(device_name))
+            projection = {"devices.$": 1}
+        else:
+            print("Checking reservation state of all devices for testrig "
+                  "containing device {}".format(device_name))
+            projection = None
+        try:
+            doc = self.db.testrigs.find_one(match, projection=projection)
+        except Exception as e:
+            print("Mongo Exception Caught: {}".format(str(e)))
+            return None
+        else:
+            return doc["devices"]
+
+    def check_device_reservation(self, device_name, all_testrig_devices):
+        device_docs = self._find_testrig_devices(device_name,
+                                                 all_testrig_devices)
+        pytest_user = getpass.getuser()
+        device_reservations = dict()
+        for device_doc in device_docs:
+            reserved_by = device_doc["reservations"][0]["shortName"]
+            print("{} is reserved by {}".format(device_doc["name"],
+                                                reserved_by))
+            if ("end" not in device_doc["reservations"][0].keys() and
+                    reserved_by == pytest_user):
+                device_reservations[device_doc["name"]] = True
+            else:
+                device_reservations[device_doc["name"]] = False
+
+        if False in device_reservations.values() or not device_reservations:
+            print("Requested devices are not reserved by the pytest user")
+            return False
+        else:
+            print("Requested devices are reserved by the pytest user")
+            return True
+
 
 def escape_html(text):
     for char, replacement in (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"),

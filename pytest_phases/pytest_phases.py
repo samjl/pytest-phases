@@ -156,6 +156,20 @@ def pytest_configure(config):
     LogOutputRedirection.session_file_path = os.path.join(
         LogOutputRedirection.root_directory, "session.json")
 
+    if CONFIG["device"].value:
+        reserved_by_user = SessionStatus.mongo.check_device_reservation(
+            CONFIG["device"].value, CONFIG["testrig"].value
+        )
+        if not reserved_by_user:
+            pytest.exit("Please reserve devices before running tests")
+    elif CONFIG["config"].value:
+        # Fallback to json config
+        print("Using legacy json file format ({})"
+              .format(CONFIG["config"].value))
+    else:
+        pytest.exit("A test device name (--device) or JSON configuration "
+                    "file (--config) needs to be specified")
+
 
 def pytest_collection_modifyitems(session, config, items):
     debug_print(session, DEBUG["mongo"])

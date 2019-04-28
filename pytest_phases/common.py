@@ -109,6 +109,14 @@ CONFIG = {
         ConfigOption(int, 0, "Jenkins upstream trigger job number"),
     "disable-exit-code":
         ConfigOption(bool, False, "Pytest always exits with success code 0"),
+
+    "device":
+        ConfigOption(str, None, "Specify the name of a single device to use "
+                                "for the test"),
+    "testrig":
+        ConfigOption(bool, True, "Whether the test uses all the devices in "
+                                 "the testrig containing the device "
+                                 "specified by the device argument"),
 }
 
 MONGO_CONFIG = {
@@ -128,7 +136,7 @@ WEB_SERVER_CONFIG = {
     "hostname":
         ConfigOption(str, None, "Web server hostname"),
     "port":
-        ConfigOption(str, None, "Web server port"),
+        ConfigOption(int, None, "Web server port"),
 }
 
 
