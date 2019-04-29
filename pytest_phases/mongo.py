@@ -111,6 +111,8 @@ class MongoConnector(object):
             self.fix_oid = []
             self.link_oid = None
 
+            self.device_configs = None
+
             if DROP_COLLECTIONS:
                 self.db.drop_collection("sessioncounter")
                 self.db.drop_collection("sessions")
@@ -969,22 +971,34 @@ class MongoConnector(object):
             print("Mongo Exception Caught: {}".format(str(e)))
             return None
         else:
-            return doc["devices"]
+            return doc
 
     def check_device_reservation(self, device_name, all_testrig_devices):
-        device_docs = self._find_testrig_devices(device_name,
+        testrig_doc = self._find_testrig_devices(device_name,
                                                  all_testrig_devices)
+        if not testrig_doc:
+            print("Failed to find reservation state for device {}"
+                  .format(device_name))
+            return False
+
         pytest_user = getpass.getuser()
         device_reservations = dict()
-        for device_doc in device_docs:
-            reserved_by = device_doc["reservations"][0]["shortName"]
-            print("{} is reserved by {}".format(device_doc["name"],
-                                                reserved_by))
-            if ("end" not in device_doc["reservations"][0].keys() and
-                    reserved_by == pytest_user):
-                device_reservations[device_doc["name"]] = True
+        for device_doc in testrig_doc["devices"]:
+            reserved_by = device_doc["reservations"][0]["userShortName"]
+            if "end" not in device_doc["reservations"][0].keys():
+                print("{} is reserved by {}".format(device_doc["name"],
+                                                    reserved_by))
+                if reserved_by == pytest_user:
+                    device_reservations[device_doc["name"]] = True
+                else:
+                    device_reservations[device_doc["name"]] = False
             else:
+                print("{} is not reserved".format(device_doc["name"]))
                 device_reservations[device_doc["name"]] = False
+
+            device_doc.pop("reservations")
+        testrig_doc.pop("_id")
+        self.device_configs = testrig_doc
 
         if False in device_reservations.values() or not device_reservations:
             print("Requested devices are not reserved by the pytest user")
@@ -992,6 +1006,10 @@ class MongoConnector(object):
         else:
             print("Requested devices are reserved by the pytest user")
             return True
+
+
+def device_configs():
+    return SessionStatus.mongo.device_configs
 
 
 def escape_html(text):

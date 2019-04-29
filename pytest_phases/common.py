@@ -112,11 +112,12 @@ CONFIG = {
 
     "device":
         ConfigOption(str, None, "Specify the name of a single device to use "
-                                "for the test"),
+                                "for the test (Can be a member of a test "
+                                "rig but the other devices will not be used)"),
     "testrig":
-        ConfigOption(bool, True, "Whether the test uses all the devices in "
-                                 "the testrig containing the device "
-                                 "specified by the device argument"),
+        ConfigOption(str, None, "Specify a device name from the testrig to use"
+                                " for the test (All devices in the test rig "
+                                "need to be reserved by the user)"),
 }
 
 MONGO_CONFIG = {
