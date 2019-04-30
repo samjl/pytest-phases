@@ -1008,7 +1008,7 @@ class MongoConnector(object):
             return True
 
 
-def device_configs():
+def get_config_from_db():
     return SessionStatus.mongo.device_configs
 
 
