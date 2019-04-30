@@ -157,17 +157,22 @@ def pytest_configure(config):
         LogOutputRedirection.root_directory, "session.json")
 
     if CONFIG["testrig"].value:
-        reserved_by_user = SessionStatus.mongo.check_device_reservation(
-            CONFIG["testrig"].value, True
-        )
-        if not reserved_by_user:
+        if CONFIG["no-reserve"].value:
+            SessionStatus.mongo.find_testrig_devices(CONFIG["testrig"].value,
+                                                     True)
+            print("Ignoring test rig device reservation status (--no-reserve "
+                  "flag set)")
+        elif not SessionStatus.mongo.check_device_reservation(
+                CONFIG["testrig"].value, True):
             pytest.exit("Please reserve all test rig devices before running "
                         "tests")
     elif CONFIG["device"].value:
-        reserved_by_user = SessionStatus.mongo.check_device_reservation(
-            CONFIG["device"].value, False
-        )
-        if not reserved_by_user:
+        if CONFIG["no-reserve"].value:
+            SessionStatus.mongo.find_testrig_devices(CONFIG["device"].value,
+                                                     False)
+            print("Ignoring device reservation status (--no-reserve flag set)")
+        elif not SessionStatus.mongo.check_device_reservation(
+                CONFIG["device"].value, False):
             pytest.exit("Please reserve device before running tests")
     elif CONFIG["config"].value:
         # Fallback to json config
