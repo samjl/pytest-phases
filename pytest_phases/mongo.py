@@ -1004,9 +1004,16 @@ class MongoConnector(object):
             print("Requested devices are reserved by the pytest user")
             return True
 
+    def find_licenses(self, serial):
+        return self.db.licenses.find_one({'_id': serial}, {'_id': 0})
+
 
 def get_config_from_db():
     return SessionStatus.mongo.device_configs
+
+
+def get_licenses_from_db(serial):
+    return SessionStatus.mongo.find_licenses(serial)
 
 
 def escape_html(text):
