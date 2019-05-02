@@ -8,6 +8,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import unicode_literals
 from __future__ import division
+import copy
 import datetime
 import getpass
 import time
@@ -1009,7 +1010,8 @@ class MongoConnector(object):
 
 
 def get_config_from_db():
-    return SessionStatus.mongo.device_configs
+    config = copy.deepcopy(SessionStatus.mongo.device_configs)
+    return config
 
 
 def get_licenses_from_db(serial):
