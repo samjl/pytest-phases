@@ -125,8 +125,8 @@ CONFIG = {
 
 MONGO_CONFIG = {
     "enable":
-        ConfigOption(bool, True, "Enable test logging to MongoDB, default is "
-                                 "True"),
+        ConfigOption(bool, False, "Enable test logging to MongoDB, default is "
+                                  "True"),
     "hosts":
         ConfigOption(str, None, "Specify mongoDB hosts"),
     "replica-set":
