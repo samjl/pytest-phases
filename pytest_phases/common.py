@@ -119,8 +119,8 @@ CONFIG = {
                                 " for the test (All devices in the test rig "
                                 "need to be reserved by the user)"),
     "no-reserve":
-        ConfigOption(bool, False, "Set to True to disable device reservation "
-                                  "checking")
+        ConfigOption(bool, True, "Set to True to disable device reservation "
+                                 "checking")
 }
 
 MONGO_CONFIG = {
