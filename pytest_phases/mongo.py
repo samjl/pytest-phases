@@ -961,7 +961,7 @@ class MongoConnector(object):
         if not all_testrig_devices:
             # Use single device from testrig only
             print("Retrieving configuration of device {}".format(device_name))
-            projection = {"devices.$": 1}
+            projection = {"devices.$": True}
         else:
             print("Retrieving configuration of all devices for testrig "
                   "containing device {}".format(device_name))
