@@ -41,42 +41,45 @@ def _dummy_method(*args, **kwargs):
     pass
 
 
-def find_one_document(collection, match):
-    try:
-        doc = collection.find_one(match)
-    except Exception as e:
-        print("Mongo Exception Caught: {}".format(str(e)))
-        return None
-    else:
-        debug_print("Found document:", prettify=doc)
-        return doc
+def retry(f):
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except Exception as e:
+            print(
+                "Retrying {} after MongoDB error: '{}'".format(f.__name__, e)
+            )
+            return f(*args, **kwargs)
+    return wrapper
 
 
-def insert_document(collection, entry):
-    try:
-        res = collection.insert_one(entry)
-    except Exception as e:
-        print("Mongo Exception Caught: {}".format(str(e)))
-    else:
-        # res.acknowledged is true if write concern enabled
-        debug_print("Successfully inserted document with ID {}".format(
-            res.inserted_id))
-        # find_one_document(collection, {"_id": res.inserted_id})
-        return res.inserted_id
+@retry
+def find_one_document(collection, match, projection=None):
+    return collection.find_one(match, projection=projection)
 
 
-def update_one_document(collection, match, update):
-    try:
-        # could use upsert option in future if required
-        res = collection.update_one(match, update)
-    except Exception as e:
-        print("Mongo Exception Caught: {}".format(str(e)))
-    else:
-        # res.acknowledged is true if write concern enabled
-        # matchedCount , modifiedCount, upsertedId
-        debug_print("Successfully matched {} and updated {} document(s)"
-                    .format(res.matched_count, res.modified_count))
-        # find_one_document(collection, match)
+@retry
+def insert_one_document(collection, document):
+    res = collection.insert_one(document)
+    return res.inserted_id
+
+
+@retry
+def update_one_document(collection, match, update, upsert=False):
+    res = collection.update_one(match, update, upsert=upsert)
+    debug_print("Successfully matched {} and updated {} document(s)"
+                .format(res.matched_count, res.modified_count))
+
+
+@retry
+def aggregate(collection, pipeline):
+    return list(collection.aggregate(pipeline))
+
+
+@retry
+def insert_many_documents(collection, documents):
+    res = collection.insert_many(documents)
+    return res.inserted_ids
 
 
 class MongoConnector(object):
@@ -126,9 +129,11 @@ class MongoConnector(object):
                 self.db.drop_collection("tracebacks")
 
     def _get_session_id(self):
-        res = self.db.sessioncounter.update_one({"_id": 0}, {"$inc": {
-            "sessionId": 1}}, upsert=True)
-        return self.db.sessioncounter.find_one({"_id": 0})["sessionId"]
+        update_one_document(self.db.sessioncounter, {"_id": 0},
+                            {"$inc": {"sessionId": 1}}, upsert=True)
+        session_id = find_one_document(self.db.sessioncounter,
+                                       {"_id": 0})["sessionId"]
+        return session_id
 
     def init_session(self, collected_tests):
         """
@@ -206,7 +211,7 @@ class MongoConnector(object):
             modules=[],
             sessionFixtures=[],
         )
-        self.session_oid = insert_document(self.db.sessions, session)
+        self.session_oid = insert_one_document(self.db.sessions, session)
 
     # Insert a new module document
     # Update session document with link to new module
@@ -240,7 +245,7 @@ class MongoConnector(object):
         else:
             # Test parent is the module
             module["moduleTests"].append(self.test_oid)
-        self.module_oid = insert_document(self.db.modules, module)
+        self.module_oid = insert_one_document(self.db.modules, module)
 
         # Add the module ObjectID link to the parent session
         match = {"_id": self.session_oid}
@@ -358,7 +363,7 @@ class MongoConnector(object):
             testName=test_function,
             logIds=[]
         )
-        self.link_oid = insert_document(self.db.loglinks, log_link)
+        self.link_oid = insert_one_document(self.db.loglinks, log_link)
 
         test_result = dict(
             sessionId=self.session_id,
@@ -382,7 +387,7 @@ class MongoConnector(object):
             callVerifications=[],
             callSummary={}
         )
-        self.test_oid = insert_document(self.db.testresults, test_result)
+        self.test_oid = insert_one_document(self.db.testresults, test_result)
         # TODO enhancement embed logs until document becomes large?
 
         if new_module_name:
@@ -410,7 +415,7 @@ class MongoConnector(object):
             setupOutcome="in-progress",
             teardownOutcome="pending"
         )
-        self.fix_oid.append(insert_document(self.db.fixtures, fixture))
+        self.fix_oid.append(insert_one_document(self.db.fixtures, fixture))
 
         # Add fixture ObjectID link to parent (session.sessionFixtures,
         # modules.moduleFixtures, modules.classes.classFixtures or
@@ -538,20 +543,21 @@ class MongoConnector(object):
         # outcomes and session.runOrder. Note: does not cover session scoped
         # fixtures.
         if scope == "module":
-            doc = self.db.modules.find_one(
+            doc = find_one_document(
+                self.db.modules,
                 {"_id": self.module_oid},
-                # Projection
-                {"_id": 0, "moduleTests": 1, "classes.classTests": 1}
+                projection={"_id": 0, "moduleTests": 1,
+                            "classes.classTests": 1}
             )
             test_oids = doc["moduleTests"]
             for class_doc in doc["classes"]:
                 test_oids.extend(class_doc["classTests"])
             debug_print("All test oids in module:", prettify=test_oids)
         elif scope == "class":
-            doc = self.db.modules.find_one(
+            doc = find_one_document(
+                self.db.modules,
                 {"_id": self.module_oid, "classes._id": self.class_oid},
-                # Projection
-                {"_id": 0, "classes.$": 1}
+                projection={"_id": 0, "classes.$": 1}
             )
             class_doc = doc["classes"][0]
             test_oids = class_doc["classTests"]
@@ -582,7 +588,7 @@ class MongoConnector(object):
             {"$match": {"_id": self.session_oid}},
             {"$project": {"progress.activeSetups": 1}}
         ]
-        res = list(self.db.sessions.aggregate(pipeline))
+        res = aggregate(self.db.sessions, pipeline)
         assert len(res) == 1, "Failed to get active setups for current session"
         test_complete = False
         try:
@@ -660,7 +666,7 @@ class MongoConnector(object):
         update_one_document(self.db.sessions, match, update)
 
         # Update phase outcome
-        doc = self.db.testresults.find_one({"_id": self.test_oid})
+        doc = find_one_document(self.db.testresults, {"_id": self.test_oid})
         phase_outcome = doc["outcome"][completed_phase]
         if hierarchy.index(outcome) < hierarchy.index(phase_outcome):
             phase_outcome = outcome
@@ -758,20 +764,19 @@ class MongoConnector(object):
                     )
                 )
 
-            res = self.db.testlogs.insert_many(docs)
+            inserted_ids = insert_many_documents(self.db.testlogs, docs)
             # Update self.db.loglinks with the ObjectId of this message entry
-            self.db.loglinks.update_one(
-                {"_id": self.link_oid},
-                {"$push": {"logIds": {"$each": res.inserted_ids}}}
-            )
+            update_one_document(self.db.loglinks, {"_id": self.link_oid},
+                                {"$push": {"logIds": {"$each": inserted_ids}}})
 
         # Update parent entries in the db: increment the number of children
         for parent_id in MongoConnector.parents[:log_level - MIN_LEVEL]:
-            self.db.testlogs.update_one(
+            update_one_document(
+                self.db.testlogs,
                 {"_id": parent_id},
                 {"$inc": {"numOfChildren": len(msgs_log_params)}}
             )
-        MongoConnector.parents[log_level - MIN_LEVEL] = res.inserted_ids[-1]
+        MongoConnector.parents[log_level - MIN_LEVEL] = inserted_ids[-1]
         for i in range(log_level-MIN_LEVEL+1, len(MongoConnector.parents)):
             MongoConnector.parents[i] = "-"
 
@@ -811,18 +816,19 @@ class MongoConnector(object):
             type=get_message_type()
         )
         # Insert the log message
-        res = self.db.testlogs.insert_one(msg)
+        inserted_id = insert_one_document(self.db.testlogs, msg)
         # Update self.db.loglinks with the ObjectId of this message entry
-        self.db.loglinks.update_one({"_id": self.link_oid},
-                                    {"$push": {"logIds": res.inserted_id}})
+        update_one_document(self.db.loglinks,
+                            {"_id": self.link_oid},
+                            {"$push": {"logIds": inserted_id}})
         # Update parent entries in the db: increment the number of children
         for parent_id in MongoConnector.parents[:level - MIN_LEVEL]:
-            self.db.testlogs.update_one({"_id": parent_id},
-                                        {"$inc": {"numOfChildren": 1}})
-
+            update_one_document(self.db.testlogs,
+                                {"_id": parent_id},
+                                {"$inc": {"numOfChildren": 1}})
         # Update the list of possible parents to include the inserted message
         # Add inserted _id for the relevant log level
-        MongoConnector.parents[level - MIN_LEVEL] = res.inserted_id
+        MongoConnector.parents[level - MIN_LEVEL] = inserted_id
         # Remove possible parent at higher log levels. Required to avoid
         # incorrect number of children incrementing when log levels increment
         # by more than 1.
@@ -880,7 +886,7 @@ class MongoConnector(object):
                 type=saved_result.traceback_link.exc_type.__name__,
                 tb=tb
             )
-            verify_oid = insert_document(self.db.tracebacks, traceback)
+            verify_oid = insert_one_document(self.db.tracebacks, traceback)
         else:
             verify_oid = None
 
@@ -934,7 +940,7 @@ class MongoConnector(object):
                                  self.fix_oid[-1],
                                  saved_result.test_function,
                                  self.test_oid)
-        verification_oid = insert_document(self.db.verifications, verify)
+        verification_oid = insert_one_document(self.db.verifications, verify)
 
         update_one_document(collection,
                             {"_id": doc_oid},
@@ -967,8 +973,8 @@ class MongoConnector(object):
                   "containing device {}".format(device_name))
             projection = None
         try:
-            self.device_configs = self.db.testrigs.find_one(
-                match, projection=projection)
+            self.device_configs = find_one_document(self.db.testrigs, match,
+                                                    projection=projection)
             self.device_configs.pop("_id")
             if remove_reservations:
                 for device_doc in self.device_configs["devices"]:
@@ -1006,7 +1012,8 @@ class MongoConnector(object):
             return True
 
     def find_licenses(self, serial):
-        return self.db.licenses.find_one({'_id': serial}, {'_id': 0})
+        return find_one_document(self.db.licenses, {'_id': serial},
+                                 projection={'_id': 0})
 
 
 def get_config_from_db():
