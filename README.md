@@ -26,6 +26,9 @@
 [Plugin Configuration](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#plugin-configuration)
 - [Verification Options](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#verification-configuration-options)
 
+[CI Test Rig Configurations](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#ci-test-rig-configurations)
+[CI Test Rig Reservations](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#ci-test-rig-reservations)
+
 [Current Limitations](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#current-limitations)
 
 [Future Work](http://nz-swbuild42:8070/slea1/pytest-phases/tree/master#future-work)
@@ -348,6 +351,36 @@ Note: Boolean options may be entered as 1/yes/true/on or 0/no/false/off.
 
 - maximum-traceback-depth (Integer):
 Print up to the maximum limit (integer) of stack trace entries.
+
+## CI Test Rig Configurations
+The CI test device or rig configurations are retrieved from the test database.
+Currently the test rigs are structured in a similar way to the old 
+configuration file format and a test rig contains a number (1+) of devices.
+This system allows a test to use the whole testrig (all devices) or a single
+ device from it.
+ 
+ To use a single device use the --device option and set it to the name of 
+ the device you want to use e.g.
+ 
+ --device=ares
+ 
+ To use a whole test rig (all devices) you still only need to specify the 
+ name of a single device but use the --testrig option instead e.g.
+ 
+ --testrig=ares 
+
+A file (.json) version of the configuration may be used by using the 
+--config option rather than --device or --testrig. This also allows use of 
+devices that do not have their configurations in the database.
+ 
+Note that the json file versions DO NOT have the same format as the previous
+ configuration files but mirror the information in the database exactly.
+
+## CI Test Rig Reservations
+The plugin can check whether the user has the specified test device or rig 
+reserved before allowing a test to start. The current default behaviour is 
+to not check the reservation. To toggle checking the device reservation(s) 
+use the --no-reserve flag.
 
 ## Current Limitations
 - failure/warning_message parameters expect a string rather than an expression
