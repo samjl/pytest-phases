@@ -78,7 +78,11 @@ class Verifications(object):
                                 .format(type_to_raise, exc_type, msg, tb))
                     set_saved_raised()  # FIXME is this required?
                     # for python 2 and 3 compatibility
-                    raise_(exc_type, msg, tb)
+                    return dict(
+                        exc_type=exc_type,
+                        exc_msg=msg,
+                        exc_tb=tb
+                    )
 
     def __init__(self):
         self.saved_tracebacks = []
@@ -222,6 +226,7 @@ class SessionStatus(object):
     prev_teardown = None  # Track the most recently completed teardown
     # fixture so it can be assigned to any regular assertions raised
     test_outcome = {}
+    failure_result = None
     # summary is determined and then the run_order is cleared. This attribute
     # keeps track of all (module) test outcomes across a session.
     session_summary = {}

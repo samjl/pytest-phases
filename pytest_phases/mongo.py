@@ -114,6 +114,7 @@ class MongoConnector(object):
             self.test_oid = None
             self.fix_oid = []
             self.link_oid = None
+            self.run_order_oid = None
 
             self.device_configs = None
 
@@ -336,12 +337,13 @@ class MongoConnector(object):
 
         # Update the parent session progress and runOrder (module link is
         # added later)
-        run_order_oid = ObjectId()
+        self.run_order_oid = ObjectId()
+
         match = {"_id": self.session_oid}
         update = {
             "$push": {
                 "runOrder": dict(
-                    _id=run_order_oid,
+                    _id=self.run_order_oid,
                     moduleName=module_name,
                     className=class_name,
                     testName=test_function,
@@ -367,7 +369,7 @@ class MongoConnector(object):
 
         test_result = dict(
             sessionId=self.session_id,
-            runOrderId=run_order_oid,
+            runOrderId=self.run_order_oid,
             functionFixtures=[],  # links to fixture docs
             moduleName=module_name,
             className=class_name,
@@ -678,12 +680,14 @@ class MongoConnector(object):
         update = {}
         if hierarchy.index(outcome) < hierarchy.index(overall_outcome):
             overall_outcome = outcome
-            if "$set" not in update.keys(): update["$set"] = dict()
+            if "$set" not in update.keys():
+                update["$set"] = dict()
             update["$set"]["runOrder.$.outcome"] = overall_outcome
             debug_print("Updating session.runOrder outcome to {}"
                         .format(overall_outcome))
         if completed_phase == "teardown" and not SessionStatus.active_setups:
-            if "$set" not in update.keys(): update["$set"] = dict()
+            if "$set" not in update.keys():
+                update["$set"] = dict()
             update["$set"]["runOrder.$.status"] = "complete"
         if update:
             update_one_document(self.db.sessions, match, update)
@@ -882,12 +886,14 @@ class MongoConnector(object):
                     locals=locals_fixed
                     )
                 )
+            exc_type = saved_result.traceback_link.exc_type.__name__
             traceback = dict(
-                type=saved_result.traceback_link.exc_type.__name__,
+                type=exc_type,
                 tb=tb
             )
             verify_oid = insert_one_document(self.db.tracebacks, traceback)
         else:
+            exc_type = None
             verify_oid = None
 
         # Get the current unix time
@@ -908,6 +914,7 @@ class MongoConnector(object):
                 location=saved_result.source["module-function-line"]
             ),
             fullTraceback=verify_oid,
+            excType=exc_type,
             immediate=saved_result.raise_immediately,
             sessionId=self.session_id,
             moduleName=saved_result.module,  # could use SessionStatus.module
@@ -942,20 +949,46 @@ class MongoConnector(object):
                                  self.test_oid)
         verification_oid = insert_one_document(self.db.verifications, verify)
 
-        update_one_document(collection,
-                            {"_id": doc_oid},
-                            {"$push": {"{}Verifications".format(
-                                saved_result.phase): verification_oid},
-                             "$inc": {"{}Summary.{}".format(saved_result.phase,
-                                saved_result.type_code): 1}
-                             })
+        match = {"_id": doc_oid}
+        update = {
+            "$push": {
+                "{}Verifications".format(saved_result.phase):
+                    verification_oid},
+             "$inc": {
+                 "{}Summary.{}".format(saved_result.phase,
+                                       saved_result.type_code): 1
+             }
+        }
+        update_one_document(collection, match, update)
 
-        # TODO to add to the saved Result object
-        # fail condition
-        # fail message
-        # warning flag?
-        # warning condition (optional)
-        # warning message (optional)
+        # If the current verification result (exclude "P" passes) is higher
+        # in the failure outcome hierarchy update the failure reason in the
+        # session.runOrder for the corresponding test (last element of
+        # runOrder).
+        type_hierarchy = ("S", "X", "O", "F", "W")
+        if saved_result.type_code != "P":
+            if (not SessionStatus.failure_result or
+                    type_hierarchy.index(saved_result.type_code) <
+                    type_hierarchy.index(SessionStatus.failure_result)):
+                # First failure or higher in hierarchy than existing failure
+                SessionStatus.failure_result = saved_result.type_code
+                # Insert the failure (exception) message, source
+                # module, function, line, and the verification doc Object ID.
+                match = {"_id": self.session_oid,
+                         "runOrder._id": self.run_order_oid}
+                update = {
+                    "$set": {
+                        "runOrder.$.excMsg": "{}: {}".format(exc_type,
+                                                             saved_result.msg),
+                        "runOrder.$.excSource": saved_result.source[
+                            "module-function-line"],
+                        "runOrder.$.verify_id": verification_oid
+                    }
+                }
+                update_one_document(self.db.sessions, match, update)
+        # TODO add failure reason to to the saved Result object
+
+        return verification_oid
 
     def update_session_complete(self):
         update_one_document(self.db.sessions, dict(_id=self.session_oid),

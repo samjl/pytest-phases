@@ -231,6 +231,7 @@ def pytest_runtest_setup(item):
         "call": Outcomes.pending,
         "teardown": Outcomes.pending
     }
+    SessionStatus.failure_result = None
 
     def get_module_class(item, new_parents):
         """
@@ -364,7 +365,8 @@ def pytest_fixture_setup(fixturedef, request):
             # Detect a regular assertion (assert) raised by the setup phase.
             # Save it so it is printed in the results table.
             _save_non_verify_exc(res._excinfo)
-            set_saved_raised()  # FIXME is this required?
+            set_saved_raised()
+            debug_print("[SETUP] Other exception raised", DEBUG["phases"])
             # TODO in future we'd like to be able to specify the Exception
             # type from the verify function so this would have to change. We
             # could check if the traceback object address is already saved
@@ -375,11 +377,25 @@ def pytest_fixture_setup(fixturedef, request):
     results, summary, outcome = (SessionStatus.verifications.
                                  fixture_setup_results(fixture_name,
                                                        test_name))
+
     SessionStatus.mongo.update_fixture_setup(fixture_name, outcome, summary)
     # Raise (first) failed verification saved during setup phase or
-    SessionStatus.verifications.raise_exc_type(results, VerificationException)
-    # else raise (first) warned verification saved during setup phase
-    SessionStatus.verifications.raise_exc_type(results, WarningException)
+    # oid, exc_type, exc_msg, exc_tb
+    to_raise = SessionStatus.verifications.raise_exc_type(
+        results, VerificationException)
+    if to_raise:
+        debug_print("[SETUP] Verification exception to be raised - {}"
+                    .format(to_raise["exc_msg"]), DEBUG["phases"])
+        raise_(to_raise["exc_type"], to_raise["exc_msg"], to_raise["exc_tb"])
+    if CONFIG["raise-warnings"].value:
+        # else raise (first) warned verification saved during setup phase
+        to_raise = SessionStatus.verifications.raise_exc_type(
+            results, WarningException)
+        if to_raise:
+            debug_print("[SETUP] Warning exception to be raised - {}"
+                        .format(to_raise["exc_msg"]), DEBUG["phases"])
+            raise_(to_raise["exc_type"], to_raise["exc_msg"],
+                   to_raise["exc_tb"])
 
 
 # Introduced in pytest 3.0.0
@@ -402,7 +418,9 @@ def pytest_fixture_post_finalizer(fixturedef, request):
             # Detect a regular assertion (assert) raised by the teardown phase.
             # Save it so it is printed in the results table.
             _save_non_verify_exc(exc_info)
-            set_saved_raised()  # FIXME is this required?
+            set_saved_raised()
+            debug_print("[POST TEARDOWN] Other exception raised",
+                        DEBUG["phases"])
             # TODO in future we'd like to be able to specify the Exception
             # type from the verify function so this would have to change. We
             # could check if the traceback object address is already saved
@@ -439,8 +457,21 @@ def pytest_fixture_post_finalizer(fixturedef, request):
     debug_print("Fixture post finalizer (after yield): {}".format(res),
                 DEBUG["scopes"], prettify=res.__dict__)
 
-    SessionStatus.verifications.raise_exc_type(results, VerificationException)
-    SessionStatus.verifications.raise_exc_type(results, WarningException)
+    to_raise = SessionStatus.verifications.raise_exc_type(
+        results, VerificationException)
+    if to_raise:
+        print("[POST TEARDOWN] Verification exception to be raised - {}"
+              .format(to_raise["exc_msg"]))
+        raise_(to_raise["exc_type"], to_raise["exc_msg"], to_raise["exc_tb"])
+    if CONFIG["raise-warnings"].value:
+        # else raise (first) warned verification saved during setup phase
+        to_raise = SessionStatus.verifications.raise_exc_type(
+            results, WarningException)
+        if to_raise:
+            print("[POST TEARDOWN] Warning exception to be raised - {}"
+                  .format(to_raise["exc_msg"]))
+            raise_(to_raise["exc_type"], to_raise["exc_msg"],
+                   to_raise["exc_tb"])
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -470,32 +501,31 @@ def pytest_pyfunc_call(pyfuncitem):
                 DEBUG["phases"])
     if raised_exc:
         if raised_exc[0] not in (WarningException, VerificationException):
-            # # DEBUG experimental code to retrieve the source code of the
-            # # function that rasied an assertion
-            # import inspect
-            # from _pytest._code.code import ExceptionInfo
-            # exc_info_py = ExceptionInfo(tup=raised_exc)
-            # calling_func = inspect.getsourcelines(
-            #     exc_info_py.traceback[-1]._rawentry
-            # )
-            # for line in calling_func[0]:
-            #     print(line)
-            # # tb_report = exc_info_py.getrepr()
-            # # print(tb_report)
-            # # END OF DEBUG
-
             # For exceptions other than Warning and Verifications:
             # * save the exceptions details and traceback so they are
             # printed in the final test summary,
             _save_non_verify_exc(raised_exc)
             set_saved_raised()
+            debug_print("[CALL] Other exception raised", DEBUG["phases"])
 
     # Re-raise first VerificationException not yet raised
     # Saved and immediately raised VerificationExceptions are raised here.
-    _raise_first_saved_exc_type(VerificationException)
-    # Else re-raise first WarningException not yet raised
+    results = SessionStatus.verifications.saved_results
+    to_raise = SessionStatus.verifications.raise_exc_type(
+        results, VerificationException)
+    if to_raise:
+        debug_print("[CALL] Verification exception to be raised - {}"
+                    .format(to_raise["exc_msg"]), DEBUG["phases"])
+        raise_(to_raise["exc_type"], to_raise["exc_msg"], to_raise["exc_tb"])
     if CONFIG["raise-warnings"].value:
-        _raise_first_saved_exc_type(WarningException)
+        # else raise (first) warned verification saved during setup phase
+        to_raise = SessionStatus.verifications.raise_exc_type(
+            results, WarningException)
+        if to_raise:
+            debug_print("[CALL] Warning exception to be raised - {}"
+                        .format(to_raise["exc_msg"]), DEBUG["phases"])
+            raise_(to_raise["exc_type"], to_raise["exc_msg"],
+                   to_raise["exc_tb"])
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -627,20 +657,6 @@ def _save_non_verify_exc(raised_exc, use_prev_teardown=False):
     s_res.append(result)
     s_tb[-1].result_link = s_res[-1]
     SessionStatus.mongo.insert_verification(result)
-
-
-def _raise_first_saved_exc_type(type_to_raise):
-    for i, saved_traceback in enumerate(SessionStatus.verifications.saved_tracebacks):
-        exc_type = saved_traceback.exc_type
-        debug_print("saved traceback index: {}, type: {}, searching for: {}"
-                    .format(i, exc_type, type_to_raise), DEBUG["verify"])
-        if exc_type == type_to_raise and not saved_traceback.raised:
-            msg = "{0.msg} - {0.status}".format(saved_traceback.result_link)
-            tb = saved_traceback.exc_traceback
-            print("Re-raising first saved {}: {} {} {}"
-                  .format(type_to_raise, exc_type, msg, tb))
-            set_saved_raised()
-            raise_(exc_type, msg, tb)  # for python 2 and 3 compatibility
 
 
 @pytest.hookimpl(hookwrapper=True)
