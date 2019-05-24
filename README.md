@@ -377,10 +377,11 @@ Note that the json file versions DO NOT have the same format as the previous
  configuration files but mirror the information in the database exactly.
 
 ## CI Test Rig Reservations
-The plugin can check whether the user has the specified test device or rig 
-reserved before allowing a test to start. The current default behaviour is 
-to not check the reservation. To toggle checking the device reservation(s) 
-use the --no-reserve flag.
+The plugin checks whether the current user has reserved the specified test
+device or rig before allowing a test to start. The current default behaviour
+is to check the reservation if the --testrig or --device parameters are set.
+To disable the reservation checking function set --no-reserve as true. The
+reservation status is not checked if hte --config option is used.
 
 ## Current Limitations
 - failure/warning_message parameters expect a string rather than an expression
