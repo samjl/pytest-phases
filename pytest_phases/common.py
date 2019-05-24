@@ -119,7 +119,7 @@ CONFIG = {
                                 " for the test (All devices in the test rig "
                                 "need to be reserved by the user)"),
     "no-reserve":
-        ConfigOption(bool, True, "Set to True to disable device reservation "
+        ConfigOption(bool, False, "Set to True to disable device reservation "
                                  "checking")
 }
 
