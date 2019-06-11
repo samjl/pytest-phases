@@ -192,12 +192,15 @@ def pytest_collection_modifyitems(session, config, items):
     # Could add fixtures - .fixturenames (probably overkill)
     test_names = [i.name for i in items]
     SessionStatus.mongo.init_session(test_names)
-    print("http://{}:{}/session?sessionIds={}".format(
-        WEB_SERVER_CONFIG["hostname"].value,
-        WEB_SERVER_CONFIG["port"].value,
-        SessionStatus.mongo.session_id)
-    )
+    if hasattr(SessionStatus.mongo, "session_id"):
+        print("http://{}:{}/session?sessionIds={}".format(
+            WEB_SERVER_CONFIG["hostname"].value,
+            WEB_SERVER_CONFIG["port"].value,
+            SessionStatus.mongo.session_id)
+        )
 
+
+# TODO before this is pytest_runtest_logstart(nodeid, location)
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_setup(item):
     debug_print("Creating log file for module {}, test function {}".format(
