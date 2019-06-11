@@ -1050,8 +1050,9 @@ class MongoConnector(object):
 
 
 def get_config_from_db():
-    config = copy.deepcopy(SessionStatus.mongo.device_configs)
-    return config
+    if hasattr(SessionStatus.mongo, "device_configs"):
+        config = copy.deepcopy(SessionStatus.mongo.device_configs)
+        return config
 
 
 def get_licenses_from_db(serial):
