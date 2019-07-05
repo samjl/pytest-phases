@@ -884,8 +884,11 @@ def pytest_terminal_summary(terminalreporter):
     pytest_reports = terminalreporter.stats
     reports_total = sum(len(v) for k, v in list(pytest_reports.items()))
     debug_print("{} pytest reports".format(reports_total), DEBUG["summary"])
-    collect_error_reports = []
-    pytest_warning_reports = []
+    collect_error_reports = list()
+    pytest_warning_reports = list()
+    pytest_skip_reports = list()
+    pytest_xfail_reports = list()
+    pytest_xpassed_reports = list()
     for report_type, reports in pytest_reports.items():
         for report in reports:
             debug_print("Report type: {}, report: {}".format(
@@ -896,16 +899,17 @@ def pytest_terminal_summary(terminalreporter):
             elif isinstance(report, WarningReport):
                 debug_print("Found WarningReport", DEBUG["summary"])
                 pytest_warning_reports.append(report)
+            elif report_type == "skipped":
+                pytest_skip_reports.append(report)
+            elif report_type == "xfailed":
+                pytest_xfail_reports.append(report)
+            elif report_type == "xpassed":
+                pytest_xpassed_reports.append(report)
 
-    # Print the expected fail, unexpected pass and skip reports exactly as
-    # pytest does.
-    # FIXME is it possible to do this on the module basis? must be bexause I
-    #  do update Mongo with xFail??
-    lines = []
-    show_xfailed(terminalreporter, lines)
-    show_xpassed(terminalreporter, lines)
-    show_skipped(terminalreporter, lines)
-
+    # Print the expected fail, unexpected pass and skip reports.
+    # FIXME move this report summary to after each module (currently at end
+    #  of session so prints all module reports at end of log for last module).
+    lines = list()
     # Print the reports of any collection errors or pytest-warnings (on
     # session basis as these are not related to specific tests) TODO check
     for report in collect_error_reports:
@@ -913,6 +917,13 @@ def pytest_terminal_summary(terminalreporter):
     for report in pytest_warning_reports:
         lines.append("PYTEST-WARNING {} {}".format(report.nodeid,
                                                    report.message))
+    for report in pytest_skip_reports:
+        lines.append("SKIPPED: {}".format(report.longrepr))
+    for report in pytest_xfail_reports:
+        lines.append("XFAIL: {}".format(report.longrepr))
+    for report in pytest_xpassed_reports:
+        lines.append("XPASS: {}, test stage {}".format(report.location,
+                                                       report.when))
     if lines:
         LogLevel.high_level_step("collection error, skip, xFail/xPass and "
                                  "pytest-warning reasons (short test summary "
